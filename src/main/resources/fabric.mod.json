@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "coretrace",
+  "version": "${version}",
+  "name": "CoreTrace",
+  "description": "Client-side CoreProtect assistant: automatic pagination, transcripts and CSV for all lookup types. English / Español.",
+  "environment": "client",
+  "license": "MIT",
+  "icon": "assets/coretrace/icon.png",
+  "entrypoints": {
+    "client": ["dev.coretrace.client.CoreTraceClient"],
+    "modmenu": ["dev.coretrace.client.ModMenuIntegration"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "26.3",
+    "java": ">=25",
+    "fabric-api": ">=0.161.0"
+  },
+  "suggests": {"modmenu": ">=20.0.1"},
+  "custom": {"modmenu": {"badges": ["client"]}}
+}

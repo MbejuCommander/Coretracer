@@ -1,0 +1,1275 @@
+{
+  "command": "co l a:-block u:jose t:3d",
+  "server": "SIMULATED.example.invalid",
+  "startedAt": 1788696000000,
+  "endedAt": 1788696021150,
+  "firstPage": 1,
+  "totalPages": 15,
+  "outcome": "COMPLETE",
+  "detail": "Se recibió el pie de la última página",
+  "pages": [
+    {
+      "number": 1,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696000001,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696000002,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x4/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696000003,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696000004,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x5/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696000005,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696000006,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x6/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696000007,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696000008,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x7/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696000009,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 1/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696000010,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696001511,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696001512,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x8/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696001513,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696001514,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x9/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696001515,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696001516,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x10/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696001517,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696001518,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x11/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696001519,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 2/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696001520,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696003021,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696003022,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x12/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696003023,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696003024,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x13/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696003025,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696003026,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x14/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696003027,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696003028,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x15/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696003029,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 3/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696003030,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696004531,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696004532,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x16/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696004533,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696004534,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x17/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696004535,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696004536,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x18/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696004537,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696004538,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x19/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696004539,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 4/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696004540,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696006041,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696006042,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x20/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696006043,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696006044,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x21/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696006045,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696006046,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x22/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696006047,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696006048,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x23/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696006049,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 5/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696006050,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696007551,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696007552,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x24/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696007553,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696007554,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x25/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696007555,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696007556,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x26/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696007557,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696007558,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x27/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696007559,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 6/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696007560,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696009061,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696009062,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x28/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696009063,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696009064,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x29/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696009065,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696009066,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x30/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696009067,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696009068,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x31/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696009069,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 7/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696009070,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 8,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696010571,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696010572,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x32/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696010573,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696010574,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x33/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696010575,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696010576,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x34/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696010577,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696010578,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x35/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696010579,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 8/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696010580,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 9,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696012081,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696012082,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x36/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696012083,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696012084,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x37/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696012085,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696012086,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x38/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696012087,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696012088,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x39/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696012089,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 9/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696012090,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 10,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696013591,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696013592,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x40/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696013593,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696013594,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x41/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696013595,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696013596,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x42/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696013597,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696013598,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x43/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696013599,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 10/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696013600,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 11,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696015101,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696015102,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x44/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696015103,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696015104,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x45/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696015105,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696015106,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x46/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696015107,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696015108,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x47/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696015109,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 11/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696015110,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 12,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696016611,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696016612,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x48/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696016613,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696016614,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x49/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696016615,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696016616,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x50/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696016617,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696016618,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x51/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696016619,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 12/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696016620,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 13,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696018121,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696018122,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x52/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696018123,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696018124,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x53/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696018125,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696018126,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x54/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696018127,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696018128,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x55/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696018129,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 13/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696018130,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 14,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696019631,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696019632,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x56/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696019633,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696019634,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x57/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696019635,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696019636,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x58/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696019637,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696019638,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x59/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696019639,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 14/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696019640,
+          "struckThrough": false
+        }
+      ]
+    },
+    {
+      "number": 15,
+      "confirmed": true,
+      "messages": [
+        {
+          "text": "----- CoreProtect | Lookup Results -----",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696021141,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696021142,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x60/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696021143,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696021144,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x61/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696021145,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:stone.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696021146,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x62/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696021147,
+          "struckThrough": false
+        },
+        {
+          "text": "0.05/h ago - jose broke minecraft:oak_log.",
+          "hovers": [
+            "2026-09-06 11:57:00 UTC"
+          ],
+          "lookupLinks": [],
+          "receivedAt": 1788696021148,
+          "struckThrough": false
+        },
+        {
+          "text": "    ^ (x63/y64/z-40/world) (a:block)",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696021149,
+          "struckThrough": false
+        },
+        {
+          "text": "Page 15/15",
+          "hovers": [],
+          "lookupLinks": [],
+          "receivedAt": 1788696021150,
+          "struckThrough": false
+        }
+      ]
+    }
+  ],
+  "pending": [],
+  "notices": [],
+  "language": "es_es"
+}

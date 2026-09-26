@@ -1,0 +1,235 @@
+CORETRACE 1.1.0 — CAPTURA EN CURSO
+Sin línea FINAL: sesión interrumpida, no asumir completa.
+Comando: /co l a:-block u:jose t:3d
+Servidor: SIMULATED.example.invalid
+Inicio UTC: 2026-09-06T12:00:00Z
+Idioma del informe: Español
+
+[2026-09-06T12:00:00.001Z] [página solicitada 1] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:00.002Z] [página solicitada 1] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:00.003Z] [página solicitada 1]     ^ (x4/y64/z-40/world) (a:block)
+[2026-09-06T12:00:00.004Z] [página solicitada 1] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:00.005Z] [página solicitada 1]     ^ (x5/y64/z-40/world) (a:block)
+[2026-09-06T12:00:00.006Z] [página solicitada 1] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:00.007Z] [página solicitada 1]     ^ (x6/y64/z-40/world) (a:block)
+[2026-09-06T12:00:00.008Z] [página solicitada 1] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:00.009Z] [página solicitada 1]     ^ (x7/y64/z-40/world) (a:block)
+[2026-09-06T12:00:00.010Z] [página solicitada 1] Page 1/15
+--- PÁGINA 1 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:01.511Z] [página solicitada 2] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:01.512Z] [página solicitada 2] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:01.513Z] [página solicitada 2]     ^ (x8/y64/z-40/world) (a:block)
+[2026-09-06T12:00:01.514Z] [página solicitada 2] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:01.515Z] [página solicitada 2]     ^ (x9/y64/z-40/world) (a:block)
+[2026-09-06T12:00:01.516Z] [página solicitada 2] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:01.517Z] [página solicitada 2]     ^ (x10/y64/z-40/world) (a:block)
+[2026-09-06T12:00:01.518Z] [página solicitada 2] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:01.519Z] [página solicitada 2]     ^ (x11/y64/z-40/world) (a:block)
+[2026-09-06T12:00:01.520Z] [página solicitada 2] Page 2/15
+--- PÁGINA 2 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:03.021Z] [página solicitada 3] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:03.022Z] [página solicitada 3] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:03.023Z] [página solicitada 3]     ^ (x12/y64/z-40/world) (a:block)
+[2026-09-06T12:00:03.024Z] [página solicitada 3] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:03.025Z] [página solicitada 3]     ^ (x13/y64/z-40/world) (a:block)
+[2026-09-06T12:00:03.026Z] [página solicitada 3] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:03.027Z] [página solicitada 3]     ^ (x14/y64/z-40/world) (a:block)
+[2026-09-06T12:00:03.028Z] [página solicitada 3] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:03.029Z] [página solicitada 3]     ^ (x15/y64/z-40/world) (a:block)
+[2026-09-06T12:00:03.030Z] [página solicitada 3] Page 3/15
+--- PÁGINA 3 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:04.531Z] [página solicitada 4] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:04.532Z] [página solicitada 4] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:04.533Z] [página solicitada 4]     ^ (x16/y64/z-40/world) (a:block)
+[2026-09-06T12:00:04.534Z] [página solicitada 4] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:04.535Z] [página solicitada 4]     ^ (x17/y64/z-40/world) (a:block)
+[2026-09-06T12:00:04.536Z] [página solicitada 4] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:04.537Z] [página solicitada 4]     ^ (x18/y64/z-40/world) (a:block)
+[2026-09-06T12:00:04.538Z] [página solicitada 4] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:04.539Z] [página solicitada 4]     ^ (x19/y64/z-40/world) (a:block)
+[2026-09-06T12:00:04.540Z] [página solicitada 4] Page 4/15
+--- PÁGINA 4 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:06.041Z] [página solicitada 5] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:06.042Z] [página solicitada 5] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:06.043Z] [página solicitada 5]     ^ (x20/y64/z-40/world) (a:block)
+[2026-09-06T12:00:06.044Z] [página solicitada 5] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:06.045Z] [página solicitada 5]     ^ (x21/y64/z-40/world) (a:block)
+[2026-09-06T12:00:06.046Z] [página solicitada 5] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:06.047Z] [página solicitada 5]     ^ (x22/y64/z-40/world) (a:block)
+[2026-09-06T12:00:06.048Z] [página solicitada 5] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:06.049Z] [página solicitada 5]     ^ (x23/y64/z-40/world) (a:block)
+[2026-09-06T12:00:06.050Z] [página solicitada 5] Page 5/15
+--- PÁGINA 5 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:07.551Z] [página solicitada 6] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:07.552Z] [página solicitada 6] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:07.553Z] [página solicitada 6]     ^ (x24/y64/z-40/world) (a:block)
+[2026-09-06T12:00:07.554Z] [página solicitada 6] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:07.555Z] [página solicitada 6]     ^ (x25/y64/z-40/world) (a:block)
+[2026-09-06T12:00:07.556Z] [página solicitada 6] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:07.557Z] [página solicitada 6]     ^ (x26/y64/z-40/world) (a:block)
+[2026-09-06T12:00:07.558Z] [página solicitada 6] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:07.559Z] [página solicitada 6]     ^ (x27/y64/z-40/world) (a:block)
+[2026-09-06T12:00:07.560Z] [página solicitada 6] Page 6/15
+--- PÁGINA 6 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:09.061Z] [página solicitada 7] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:09.062Z] [página solicitada 7] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:09.063Z] [página solicitada 7]     ^ (x28/y64/z-40/world) (a:block)
+[2026-09-06T12:00:09.064Z] [página solicitada 7] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:09.065Z] [página solicitada 7]     ^ (x29/y64/z-40/world) (a:block)
+[2026-09-06T12:00:09.066Z] [página solicitada 7] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:09.067Z] [página solicitada 7]     ^ (x30/y64/z-40/world) (a:block)
+[2026-09-06T12:00:09.068Z] [página solicitada 7] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:09.069Z] [página solicitada 7]     ^ (x31/y64/z-40/world) (a:block)
+[2026-09-06T12:00:09.070Z] [página solicitada 7] Page 7/15
+--- PÁGINA 7 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:10.571Z] [página solicitada 8] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:10.572Z] [página solicitada 8] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:10.573Z] [página solicitada 8]     ^ (x32/y64/z-40/world) (a:block)
+[2026-09-06T12:00:10.574Z] [página solicitada 8] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:10.575Z] [página solicitada 8]     ^ (x33/y64/z-40/world) (a:block)
+[2026-09-06T12:00:10.576Z] [página solicitada 8] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:10.577Z] [página solicitada 8]     ^ (x34/y64/z-40/world) (a:block)
+[2026-09-06T12:00:10.578Z] [página solicitada 8] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:10.579Z] [página solicitada 8]     ^ (x35/y64/z-40/world) (a:block)
+[2026-09-06T12:00:10.580Z] [página solicitada 8] Page 8/15
+--- PÁGINA 8 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:12.081Z] [página solicitada 9] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:12.082Z] [página solicitada 9] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:12.083Z] [página solicitada 9]     ^ (x36/y64/z-40/world) (a:block)
+[2026-09-06T12:00:12.084Z] [página solicitada 9] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:12.085Z] [página solicitada 9]     ^ (x37/y64/z-40/world) (a:block)
+[2026-09-06T12:00:12.086Z] [página solicitada 9] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:12.087Z] [página solicitada 9]     ^ (x38/y64/z-40/world) (a:block)
+[2026-09-06T12:00:12.088Z] [página solicitada 9] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:12.089Z] [página solicitada 9]     ^ (x39/y64/z-40/world) (a:block)
+[2026-09-06T12:00:12.090Z] [página solicitada 9] Page 9/15
+--- PÁGINA 9 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:13.591Z] [página solicitada 10] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:13.592Z] [página solicitada 10] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:13.593Z] [página solicitada 10]     ^ (x40/y64/z-40/world) (a:block)
+[2026-09-06T12:00:13.594Z] [página solicitada 10] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:13.595Z] [página solicitada 10]     ^ (x41/y64/z-40/world) (a:block)
+[2026-09-06T12:00:13.596Z] [página solicitada 10] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:13.597Z] [página solicitada 10]     ^ (x42/y64/z-40/world) (a:block)
+[2026-09-06T12:00:13.598Z] [página solicitada 10] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:13.599Z] [página solicitada 10]     ^ (x43/y64/z-40/world) (a:block)
+[2026-09-06T12:00:13.600Z] [página solicitada 10] Page 10/15
+--- PÁGINA 10 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:15.101Z] [página solicitada 11] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:15.102Z] [página solicitada 11] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:15.103Z] [página solicitada 11]     ^ (x44/y64/z-40/world) (a:block)
+[2026-09-06T12:00:15.104Z] [página solicitada 11] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:15.105Z] [página solicitada 11]     ^ (x45/y64/z-40/world) (a:block)
+[2026-09-06T12:00:15.106Z] [página solicitada 11] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:15.107Z] [página solicitada 11]     ^ (x46/y64/z-40/world) (a:block)
+[2026-09-06T12:00:15.108Z] [página solicitada 11] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:15.109Z] [página solicitada 11]     ^ (x47/y64/z-40/world) (a:block)
+[2026-09-06T12:00:15.110Z] [página solicitada 11] Page 11/15
+--- PÁGINA 11 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:16.611Z] [página solicitada 12] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:16.612Z] [página solicitada 12] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:16.613Z] [página solicitada 12]     ^ (x48/y64/z-40/world) (a:block)
+[2026-09-06T12:00:16.614Z] [página solicitada 12] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:16.615Z] [página solicitada 12]     ^ (x49/y64/z-40/world) (a:block)
+[2026-09-06T12:00:16.616Z] [página solicitada 12] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:16.617Z] [página solicitada 12]     ^ (x50/y64/z-40/world) (a:block)
+[2026-09-06T12:00:16.618Z] [página solicitada 12] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:16.619Z] [página solicitada 12]     ^ (x51/y64/z-40/world) (a:block)
+[2026-09-06T12:00:16.620Z] [página solicitada 12] Page 12/15
+--- PÁGINA 12 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:18.121Z] [página solicitada 13] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:18.122Z] [página solicitada 13] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:18.123Z] [página solicitada 13]     ^ (x52/y64/z-40/world) (a:block)
+[2026-09-06T12:00:18.124Z] [página solicitada 13] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:18.125Z] [página solicitada 13]     ^ (x53/y64/z-40/world) (a:block)
+[2026-09-06T12:00:18.126Z] [página solicitada 13] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:18.127Z] [página solicitada 13]     ^ (x54/y64/z-40/world) (a:block)
+[2026-09-06T12:00:18.128Z] [página solicitada 13] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:18.129Z] [página solicitada 13]     ^ (x55/y64/z-40/world) (a:block)
+[2026-09-06T12:00:18.130Z] [página solicitada 13] Page 13/15
+--- PÁGINA 13 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:19.631Z] [página solicitada 14] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:19.632Z] [página solicitada 14] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:19.633Z] [página solicitada 14]     ^ (x56/y64/z-40/world) (a:block)
+[2026-09-06T12:00:19.634Z] [página solicitada 14] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:19.635Z] [página solicitada 14]     ^ (x57/y64/z-40/world) (a:block)
+[2026-09-06T12:00:19.636Z] [página solicitada 14] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:19.637Z] [página solicitada 14]     ^ (x58/y64/z-40/world) (a:block)
+[2026-09-06T12:00:19.638Z] [página solicitada 14] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:19.639Z] [página solicitada 14]     ^ (x59/y64/z-40/world) (a:block)
+[2026-09-06T12:00:19.640Z] [página solicitada 14] Page 14/15
+--- PÁGINA 14 CERRADA; pie confirmado=true ---
+[2026-09-06T12:00:21.141Z] [página solicitada 15] ----- CoreProtect | Lookup Results -----
+[2026-09-06T12:00:21.142Z] [página solicitada 15] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:21.143Z] [página solicitada 15]     ^ (x60/y64/z-40/world) (a:block)
+[2026-09-06T12:00:21.144Z] [página solicitada 15] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:21.145Z] [página solicitada 15]     ^ (x61/y64/z-40/world) (a:block)
+[2026-09-06T12:00:21.146Z] [página solicitada 15] 0.05/h ago - jose broke minecraft:stone.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:21.147Z] [página solicitada 15]     ^ (x62/y64/z-40/world) (a:block)
+[2026-09-06T12:00:21.148Z] [página solicitada 15] 0.05/h ago - jose broke minecraft:oak_log.
+    [texto emergente] 2026-09-06 11:57:00 UTC
+[2026-09-06T12:00:21.149Z] [página solicitada 15]     ^ (x63/y64/z-40/world) (a:block)
+[2026-09-06T12:00:21.150Z] [página solicitada 15] Page 15/15
+--- PÁGINA 15 CERRADA; pie confirmado=true ---
+
+FINAL: FINALIZADA CON PIE DE ÚLTIMA PÁGINA
+Se recibió el pie de la última página

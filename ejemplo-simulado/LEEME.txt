@@ -1,0 +1,11 @@
+EJEMPLOS SIMULADOS — CoreTrace 1.1.0
+
+Ninguno de estos datos procede de un servidor real.
+Los cuatro archivos principales muestran 15 páginas y 60 eventos de bloques.
+all-event-types.csv reúne 21 registros de 11 consultas simuladas diferentes:
+block, session, chat, command, click, container, item, inventory, kill, sign y username.
+No representa una sola consulta ni datos de un jugador real. Los originales de cada consulta están en all-event-types.json.
+Se generaron con el motor y exportador reales; el CSV tiene 24 columnas en inglés aunque el informe esté en español.
+El ejemplo de cartel incluye comillas, comas y saltos de línea. Un mensaje =1+2 demuestra la protección de fórmulas en CSV.
+La carpeta example-english contiene la misma captura de 15 páginas con informes en inglés. Sus CSV son idénticos.
+El generador reproducible está en examples/GenerateExamples.java. Usa JDK 25 y un classpath con el JAR de CoreTrace y Gson. Pasa una carpeta de salida que no exista.

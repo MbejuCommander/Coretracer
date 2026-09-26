@@ -1,0 +1,618 @@
+[
+  {
+    "command": "co l a:block u:jose t:3d",
+    "server": "SIMULATED.example.invalid",
+    "startedAt": 1788696000000,
+    "endedAt": 1788696000005,
+    "firstPage": 1,
+    "totalPages": 1,
+    "outcome": "COMPLETE",
+    "detail": "Se recibió el pie de la última página",
+    "pages": [
+      {
+        "number": 1,
+        "confirmed": true,
+        "messages": [
+          {
+            "text": "----- CoreProtect | Lookup Results -----",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000001,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose broke minecraft:stone.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000002,
+            "struckThrough": false
+          },
+          {
+            "text": "^ (x12/y64/z-40/world)",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000003,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago + jose placed oak_log.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000004,
+            "struckThrough": false
+          },
+          {
+            "text": "Page 1/1",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000005,
+            "struckThrough": false
+          }
+        ]
+      }
+    ],
+    "pending": [],
+    "notices": [],
+    "language": "es_es"
+  },
+  {
+    "command": "co l a:session u:jose t:3d",
+    "server": "SIMULATED.example.invalid",
+    "startedAt": 1788696000000,
+    "endedAt": 1788696000005,
+    "firstPage": 1,
+    "totalPages": 1,
+    "outcome": "COMPLETE",
+    "detail": "Se recibió el pie de la última página",
+    "pages": [
+      {
+        "number": 1,
+        "confirmed": true,
+        "messages": [
+          {
+            "text": "----- CoreProtect | Lookup Results -----",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000001,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago + jose logged in.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000002,
+            "struckThrough": false
+          },
+          {
+            "text": "^ (x12/y64/z-40/world)",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000003,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose logged out.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000004,
+            "struckThrough": false
+          },
+          {
+            "text": "Page 1/1",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000005,
+            "struckThrough": false
+          }
+        ]
+      }
+    ],
+    "pending": [],
+    "notices": [],
+    "language": "es_es"
+  },
+  {
+    "command": "co l a:chat u:jose t:3d",
+    "server": "SIMULATED.example.invalid",
+    "startedAt": 1788696000000,
+    "endedAt": 1788696000004,
+    "firstPage": 1,
+    "totalPages": 1,
+    "outcome": "COMPLETE",
+    "detail": "Se recibió el pie de la última página",
+    "pages": [
+      {
+        "number": 1,
+        "confirmed": true,
+        "messages": [
+          {
+            "text": "----- CoreProtect | Lookup Results -----",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000001,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose: Hello, \"world\"!",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000002,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose: =1+2",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000003,
+            "struckThrough": false
+          },
+          {
+            "text": "Page 1/1",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000004,
+            "struckThrough": false
+          }
+        ]
+      }
+    ],
+    "pending": [],
+    "notices": [],
+    "language": "es_es"
+  },
+  {
+    "command": "co l a:command u:jose t:3d",
+    "server": "SIMULATED.example.invalid",
+    "startedAt": 1788696000000,
+    "endedAt": 1788696000003,
+    "firstPage": 1,
+    "totalPages": 1,
+    "outcome": "COMPLETE",
+    "detail": "Se recibió el pie de la última página",
+    "pages": [
+      {
+        "number": 1,
+        "confirmed": true,
+        "messages": [
+          {
+            "text": "----- CoreProtect | Lookup Results -----",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000001,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose: /say Server maintenance in 10 minutes",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000002,
+            "struckThrough": false
+          },
+          {
+            "text": "Page 1/1",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000003,
+            "struckThrough": false
+          }
+        ]
+      }
+    ],
+    "pending": [],
+    "notices": [],
+    "language": "es_es"
+  },
+  {
+    "command": "co l a:click u:jose t:3d",
+    "server": "SIMULATED.example.invalid",
+    "startedAt": 1788696000000,
+    "endedAt": 1788696000004,
+    "firstPage": 1,
+    "totalPages": 1,
+    "outcome": "COMPLETE",
+    "detail": "Se recibió el pie de la última página",
+    "pages": [
+      {
+        "number": 1,
+        "confirmed": true,
+        "messages": [
+          {
+            "text": "----- CoreProtect | Lookup Results -----",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000001,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose clicked chest.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000002,
+            "struckThrough": false
+          },
+          {
+            "text": "^ (x13/y64/z-40/world)",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000003,
+            "struckThrough": false
+          },
+          {
+            "text": "Page 1/1",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000004,
+            "struckThrough": false
+          }
+        ]
+      }
+    ],
+    "pending": [],
+    "notices": [],
+    "language": "es_es"
+  },
+  {
+    "command": "co l a:container u:jose t:3d",
+    "server": "SIMULATED.example.invalid",
+    "startedAt": 1788696000000,
+    "endedAt": 1788696000005,
+    "firstPage": 1,
+    "totalPages": 1,
+    "outcome": "COMPLETE",
+    "detail": "Se recibió el pie de la última página",
+    "pages": [
+      {
+        "number": 1,
+        "confirmed": true,
+        "messages": [
+          {
+            "text": "----- CoreProtect | Lookup Results -----",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000001,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago + jose added x64 diamond(↓).",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000002,
+            "struckThrough": false
+          },
+          {
+            "text": "^ (x13/y64/z-40/world)",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000003,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose removed x12 iron_ingot.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000004,
+            "struckThrough": false
+          },
+          {
+            "text": "Page 1/1",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000005,
+            "struckThrough": false
+          }
+        ]
+      }
+    ],
+    "pending": [],
+    "notices": [],
+    "language": "es_es"
+  },
+  {
+    "command": "co l a:item u:jose t:3d",
+    "server": "SIMULATED.example.invalid",
+    "startedAt": 1788696000000,
+    "endedAt": 1788696000008,
+    "firstPage": 1,
+    "totalPages": 1,
+    "outcome": "COMPLETE",
+    "detail": "Se recibió el pie de la última página",
+    "pages": [
+      {
+        "number": 1,
+        "confirmed": true,
+        "messages": [
+          {
+            "text": "----- CoreProtect | Lookup Results -----",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000001,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago + jose picked up x3 diamond.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000002,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose dropped x8 stone.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000003,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose deposited x2 ender_pearl.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000004,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago + jose withdrew x4 emerald.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000005,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose threw x1 snowball.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000006,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose shot x1 arrow.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000007,
+            "struckThrough": false
+          },
+          {
+            "text": "Page 1/1",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000008,
+            "struckThrough": false
+          }
+        ]
+      }
+    ],
+    "pending": [],
+    "notices": [],
+    "language": "es_es"
+  },
+  {
+    "command": "co l a:inventory u:jose t:3d",
+    "server": "SIMULATED.example.invalid",
+    "startedAt": 1788696000000,
+    "endedAt": 1788696000004,
+    "firstPage": 1,
+    "totalPages": 1,
+    "outcome": "COMPLETE",
+    "detail": "Se recibió el pie de la última página",
+    "pages": [
+      {
+        "number": 1,
+        "confirmed": true,
+        "messages": [
+          {
+            "text": "----- CoreProtect | Lookup Results -----",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000001,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago + jose added x4 oak_planks.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000002,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose removed x1 oak_log.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000003,
+            "struckThrough": false
+          },
+          {
+            "text": "Page 1/1",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000004,
+            "struckThrough": false
+          }
+        ]
+      }
+    ],
+    "pending": [],
+    "notices": [],
+    "language": "es_es"
+  },
+  {
+    "command": "co l a:kill u:jose t:3d",
+    "server": "SIMULATED.example.invalid",
+    "startedAt": 1788696000000,
+    "endedAt": 1788696000004,
+    "firstPage": 1,
+    "totalPages": 1,
+    "outcome": "COMPLETE",
+    "detail": "Se recibió el pie de la última página",
+    "pages": [
+      {
+        "number": 1,
+        "confirmed": true,
+        "messages": [
+          {
+            "text": "----- CoreProtect | Lookup Results -----",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000001,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose killed zombie.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000002,
+            "struckThrough": false
+          },
+          {
+            "text": "^ (x-12/y64/z-40/world_nether)",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000003,
+            "struckThrough": false
+          },
+          {
+            "text": "Page 1/1",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000004,
+            "struckThrough": false
+          }
+        ]
+      }
+    ],
+    "pending": [],
+    "notices": [],
+    "language": "es_es"
+  },
+  {
+    "command": "co l a:sign u:jose t:3d",
+    "server": "SIMULATED.example.invalid",
+    "startedAt": 1788696000000,
+    "endedAt": 1788696000004,
+    "firstPage": 1,
+    "totalPages": 1,
+    "outcome": "COMPLETE",
+    "detail": "Se recibió el pie de la última página",
+    "pages": [
+      {
+        "number": 1,
+        "confirmed": true,
+        "messages": [
+          {
+            "text": "----- CoreProtect | Lookup Results -----",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000001,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose: Welcome!\nShop, \"diamonds\"\n2 per stack\nThank you",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000002,
+            "struckThrough": false
+          },
+          {
+            "text": "^ (x14/y64/z-40/world)",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000003,
+            "struckThrough": false
+          },
+          {
+            "text": "Page 1/1",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000004,
+            "struckThrough": false
+          }
+        ]
+      }
+    ],
+    "pending": [],
+    "notices": [],
+    "language": "es_es"
+  },
+  {
+    "command": "co l a:username u:jose t:3d",
+    "server": "SIMULATED.example.invalid",
+    "startedAt": 1788696000000,
+    "endedAt": 1788696000003,
+    "firstPage": 1,
+    "totalPages": 1,
+    "outcome": "COMPLETE",
+    "detail": "Se recibió el pie de la última página",
+    "pages": [
+      {
+        "number": 1,
+        "confirmed": true,
+        "messages": [
+          {
+            "text": "----- CoreProtect | Lookup Results -----",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000001,
+            "struckThrough": false
+          },
+          {
+            "text": "0.05/h ago - jose logged in as OldJose.",
+            "hovers": [
+              "2026-09-06 11:57:00 UTC"
+            ],
+            "lookupLinks": [],
+            "receivedAt": 1788696000002,
+            "struckThrough": false
+          },
+          {
+            "text": "Page 1/1",
+            "hovers": [],
+            "lookupLinks": [],
+            "receivedAt": 1788696000003,
+            "struckThrough": false
+          }
+        ]
+      }
+    ],
+    "pending": [],
+    "notices": [],
+    "language": "es_es"
+  }
+]

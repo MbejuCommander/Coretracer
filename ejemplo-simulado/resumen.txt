@@ -1,0 +1,43 @@
+CORETRACE — RESUMEN DE CONSULTA
+
+Estado: FINALIZADA CON PIE DE ÚLTIMA PÁGINA
+Motivo: Se recibió el pie de la última página
+Comando: /co l a:-block u:jose t:3d
+Servidor: SIMULATED.example.invalid
+Inicio UTC: 2026-09-06T12:00:00Z
+Fin UTC: 2026-09-06T12:00:21.150Z
+Idioma del informe: Español
+Página inicial: 1
+Páginas recibidas con cierre: 15
+Total anunciado: 15
+Líneas en una página sin terminar: 0
+Registros de evento capturados: 60
+Registros con página confirmada: 60
+Registros sin clasificación de acción: 0
+Registros con interpretación parcial o ambigua: 0
+Registros con texto tachado: 0
+
+Los conteos representan registros de evento, no cantidades de objetos ni daño neto.
+Se conservan las acciones repetidas. No se restan las acciones revertidas.
+Se reconoce el formato inglés de CoreProtect CE y algunos verbos ES/PT. El texto original tiene prioridad.
+El CSV conserva columnas en inglés y registros sin traducir, independientemente del idioma del menú.
+Los campos ausentes quedan vacíos; parse_status indica interpretación parcial o ambigua.
+CoreProtect no ofrece una instantánea transaccional a través del chat.
+
+POR USUARIO
+jose: 60
+
+POR TIPO DE EVENTO
+bloques: 60
+
+POR ACCIÓN
+bloque roto: 60
+
+POR BLOQUE / OBJETO IDENTIFICADO
+minecraft:oak_log: 30
+minecraft:stone: 30
+
+ARCHIVOS
+transcript.log: texto capturado en orden de recepción, incluidos textos emergentes.
+registros.csv: una fila por evento; columnas en inglés y registros en el idioma original del servidor.
+sesion.json: páginas, estado y mensajes estructurados.

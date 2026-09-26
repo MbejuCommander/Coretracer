@@ -1,0 +1,43 @@
+CORETRACE — LOOKUP SUMMARY
+
+Status: COMPLETED WITH FINAL PAGE FOOTER
+Reason: The final page footer was received
+Command: /co l a:-block u:jose t:3d
+Server: SIMULATED.example.invalid
+Started UTC: 2026-09-06T12:00:00Z
+Ended UTC: 2026-09-06T12:00:21.150Z
+Report language: English
+First page: 1
+Closed pages received: 15
+Announced total: 15
+Lines in an unfinished page: 0
+Captured event records: 60
+Records with a confirmed page: 60
+Records with an unclassified action: 0
+Records with partial or ambiguous parsing: 0
+Records with strikethrough text: 0
+
+Counts represent event records, not item quantities or net damage.
+Repeated actions are preserved. Rolled-back actions are not subtracted.
+The parser supports the English CoreProtect CE format and some ES/PT verbs. Original text takes precedence.
+CSV columns stay in English and server records are never translated, regardless of the menu language.
+Missing fields stay empty; parse_status marks partial or ambiguous parsing.
+CoreProtect does not provide a transactional snapshot through chat.
+
+BY USER
+jose: 60
+
+BY EVENT TYPE
+blocks: 60
+
+BY ACTION
+block broken: 60
+
+BY IDENTIFIED BLOCK / OBJECT
+minecraft:oak_log: 30
+minecraft:stone: 30
+
+FILES
+transcript.log: captured text in received order, including tooltips.
+records.csv: one row per event; English columns and records in the original server language.
+session.json: structured pages, status and messages.
