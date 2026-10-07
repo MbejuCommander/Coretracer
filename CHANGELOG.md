@@ -1,3 +1,28 @@
+**1.4.0 — Minecraft 26.3 / Java 25**
+
+- Task delay defaults to 3000 ms when blank or in new configurations; existing explicit delays and 750 ms command defaults are preserved.
+- Duplicate tasks with independent copies of commands and per-task settings; clear the entire current queue.
+- Named task profiles: save a copy of the current task list, load it or delete saved profiles. Saved profiles remain independent from active task edits and executions.
+
+**1.3.2 — Minecraft 26.3 only**
+
+- Show a hoverable warning triangle beside Task delay when the effective value is below 3,000 ms, including the blank-field default of 750 ms. Short delays remain valid.
+
+**1.3.1 — Minecraft 26.3 only**
+
+- Accept single-page lookups without pagination footers by default after the settle period, save them and continue the task queue. The option is available in global and per-task capture settings; disabling it retains the previous behavior. Export confirmation flags remain accurate.
+- Each task now supports a paginated, unlimited-length command list with individual pre-command delays, add/remove and arrow ordering. Legacy single commands migrate automatically.
+- Regression coverage for single-page acceptance, exports, inheritance, migration, ordered command delays and cancellation.
+
+**1.3.0 — Minecraft 26.3 only**
+
+- Named export folders with collision-safe numeric suffixes; optional CSV name auto-clear (off by default).
+- Persistent sequential task queue with add/delete, arrow ordering, per-task capture and CSV overrides, optional custom commands and configurable delays (750 ms by default).
+- Separate queue start/end sounds; per-task sounds default to off.
+- Queue progression waits for export completion and stops on unsuccessful outcomes, cancellation, disconnection and storage failures.
+- Frozen capture settings, protected in-flight exports and last-export recovery by modification time.
+- Automated coverage for queue ordering, delays, failure paths, configuration inheritance, persistence, naming and reset behavior. Live Minecraft/server testing remains pending.
+
 **1.2.1 — Minecraft 26.3**
 
 - Custom CSV names with optional extension and Windows filename validation. Split files use `name_1.csv`, `name_2.csv`, etc.; summaries list the actual files.

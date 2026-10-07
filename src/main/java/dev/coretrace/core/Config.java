@@ -18,9 +18,34 @@ public final class Config {
     public int settleMs = 3500;
     public int maxPages = 500;
     public boolean captureHovers = true;
+    public boolean acceptSinglePage = true;
     public List<String> csvColumns = new ArrayList<>(Report.CSV_COLUMNS);
     public int csvPagesPerFile = 0;
     public String csvFileName = "";
+    public boolean resetCsvNameAfterExport = false;
+    public List<TaskDefinition> tasks = new ArrayList<>();
+    public int taskDelayMs = 3000;
+    public List<TaskProfile> taskProfiles = new ArrayList<>();
+    public String queueStartSound = "";
+    public String queueFinishSound = "";
+    public Config copy() { return new Gson().fromJson(new Gson().toJson(this), Config.class); }
+    public Config captureCopy() {
+        Config c = copy(); c.tasks.clear(); c.taskProfiles.clear(); return c;
+    }
+    public TaskDefinition duplicateTask(int index) {
+        TaskDefinition duplicate = tasks.get(index).copy();
+        tasks.add(index + 1, duplicate);
+        return duplicate;
+    }
+    public void saveTaskProfile(String name) {
+        String clean = TaskProfile.validName(name);
+        if (taskProfiles.stream().anyMatch(p -> p.name.equalsIgnoreCase(clean)))
+            throw new IllegalArgumentException("Profile name already exists");
+        taskProfiles.add(new TaskProfile(clean, tasks));
+    }
+    public void loadTaskProfile(TaskProfile profile) {
+        tasks = TaskProfile.copyTasks(profile.tasks);
+    }
     public String startSound = "minecraft:ui.toast.in";
     public String finishSound = "minecraft:ui.toast.challenge_complete";
     public String lastExportFile = "";
@@ -28,6 +53,15 @@ public final class Config {
     public List<String> favorites = new ArrayList<>();
     public void normalize() {
         language = Language.fromCode(language).code();
+        if (tasks == null) tasks = new ArrayList<>();
+        tasks.removeIf(java.util.Objects::isNull);
+        tasks.forEach(TaskDefinition::migrateCommands);
+        if (taskProfiles == null) taskProfiles = new ArrayList<>();
+        taskProfiles.removeIf(java.util.Objects::isNull);
+        taskProfiles.forEach(TaskProfile::normalize);
+        taskDelayMs = Math.clamp(taskDelayMs, 0, 3600000);
+        queueStartSound = normalizeSound(queueStartSound);
+        queueFinishSound = normalizeSound(queueFinishSound);
         delayMs = Math.clamp(delayMs, 750, 30000);
         timeoutMs = Math.clamp(timeoutMs, 5000, 180000);
         settleMs = Math.clamp(settleMs, 1500, timeoutMs - 1000);
@@ -60,7 +94,7 @@ public final class Config {
         return new ArrayList<>(items.stream().filter(x -> x != null && LookupCommand.parse(x).isPresent()).distinct().limit(max).toList());
     }
     public Language selectedLanguage() { return Language.fromCode(language); }
-    public CaptureEngine.Settings settings() { normalize(); return new CaptureEngine.Settings(delayMs, timeoutMs, settleMs, maxPages, selectedLanguage()); }
+    public CaptureEngine.Settings settings() { normalize(); return new CaptureEngine.Settings(delayMs, timeoutMs, settleMs, maxPages, selectedLanguage(), acceptSinglePage); }
     public void remember(String command) {
         recentQueries.remove(command); recentQueries.addFirst(command); normalize();
     }

@@ -41,8 +41,11 @@ public final class CoreTraceClient implements ClientModInitializer {
     private Config config;
     private Path configPath, exports;
     private CaptureEngine engine;
+    private TaskQueue taskQueue;
+    private Config captureConfig;
+    private boolean saving;
     private Context context;
-    private boolean ownCommand, openPending;
+    private boolean ownCommand, openPending, commandCancelled;
     private String feedbackKey = "status.ready";
     private Object[] feedbackArgs = new Object[0];
     private Path lastDirectory;
@@ -72,7 +75,7 @@ public final class CoreTraceClient implements ClientModInitializer {
         key = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.coretrace.menu", InputConstants.KEY_F8,
                 KeyMapping.Category.register(Identifier.fromNamespaceAndPath("coretrace", "main"))));
         ClientSendMessageEvents.ALLOW_COMMAND.register(command -> {
-            if (!ownCommand && active() && LookupCommand.isCoreProtect(command)) {
+            if (!ownCommand && busy() && LookupCommand.isCoreProtect(command)) {
                 noticeKey("notice.busy_command");
                 return false;
             }
@@ -83,10 +86,11 @@ public final class CoreTraceClient implements ClientModInitializer {
             return true;
         });
         ClientSendMessageEvents.COMMAND.register(command -> {
-            if (!ownCommand && config.automatic) LookupCommand.parse(command).filter(LookupCommand::query)
+            if (!ownCommand && !busy() && config.automatic) LookupCommand.parse(command).filter(LookupCommand::query)
                     .ifPresent(c -> begin(c, false));
         });
         ClientSendMessageEvents.COMMAND_CANCELED.register(command -> {
+            if (ownCommand) commandCancelled = true;
             if (ownCommand && active()) engine.endKey(CaptureEngine.Outcome.CANCELLED, "reason.other_mod", now());
         });
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
@@ -99,18 +103,21 @@ public final class CoreTraceClient implements ClientModInitializer {
                 }
                 return true;
             }
-            boolean captured = engine.accept(ComponentReader.read(message, config.captureHovers, now()), now());
-            return !captured || !config.hideCapturedChat;
+            boolean captured = engine.accept(ComponentReader.read(message, captureConfig.captureHovers, now()), now());
+            return !captured || !captureConfig.hideCapturedChat;
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (key.consumeClick()) openPending = true;
             if (openPending) { openPending = false; client.gui.setScreen(new MainScreen(client.gui.screen(), null)); }
             if (active()) engine.tick(now());
+            if (queueActive()) taskQueue.tick(now());
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            if (queueActive()) taskQueue.cancel();
             if (active()) engine.endKey(CaptureEngine.Outcome.DISCONNECTED, "reason.disconnected", now());
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            if (queueActive()) taskQueue.cancel();
             if (active()) engine.endKey(CaptureEngine.Outcome.DISCONNECTED, "reason.shutdown", now());
             io.shutdown();
             try { if (!io.awaitTermination(4, TimeUnit.SECONDS)) LOGGER.warn(tr("notice.unfinished_writes")); }
@@ -131,47 +138,63 @@ public final class CoreTraceClient implements ClientModInitializer {
     public boolean start(String input) {
         var parsed = LookupCommand.fromInput(input);
         if (parsed.isEmpty()) { noticeKey("notice.invalid_query"); return false; }
+        if (busy()) { noticeKey("notice.busy"); return false; }
         return begin(parsed.get(), true);
     }
     private boolean begin(LookupCommand command, boolean send) {
+        return begin(command, send, config.captureCopy(), null);
+    }
+    private boolean begin(LookupCommand command, boolean send, Config runConfig, TaskDefinition task) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getConnection() == null || mc.player == null) { noticeKey("notice.connect"); return false; }
-        if (active()) { noticeKey("notice.busy"); return false; }
+        if (active() || saving) { noticeKey("notice.busy"); return false; }
         if (now() < readyAfter) { noticeKey("notice.cooldown", (readyAfter - now()) / 1000 + 1); return false; }
         long started = now();
         String server = mc.getCurrentServer() == null ? "local" : mc.getCurrentServer().ip;
-        Path path = exports.resolve(NAME.format(Instant.ofEpochMilli(started)) + "-" + UUID.randomUUID().toString().substring(0, 8));
-        var settings = config.settings();
-        Context ctx = new Context(path, settings.language(), config); context = ctx;
+        Path path;
+        try { path = CsvFileNames.reserveDirectory(exports, runConfig.csvFileName,
+                NAME.format(Instant.ofEpochMilli(started)) + "-" + UUID.randomUUID().toString().substring(0, 8)); }
+        catch (IOException e) { noticeKey("notice.save_failed"); return false; }
+        captureConfig = runConfig;
+        var settings = runConfig.settings();
+        Context ctx = new Context(path, settings.language(), runConfig); context = ctx;
+        TaskQueue owner = task == null ? null : taskQueue;
         queue(ctx, () -> ctx.files.begin(command.command(), server, started));
         engine = new CaptureEngine(command, settings, new CaptureEngine.Sink() {
             @Override public void send(String text) { sendLookup(text); }
             @Override public void line(int page, MessageData m) { queue(ctx, () -> ctx.files.line(page, m)); }
             @Override public void page(CaptureEngine.Page p) { queue(ctx, () -> ctx.files.page(p)); }
             @Override public void finish(CaptureEngine.Snapshot snapshot) {
-                if (snapshot.outcome() != CaptureEngine.Outcome.COMPLETE && snapshot.outcome() != CaptureEngine.Outcome.EMPTY
+                if (!snapshot.outcome().successful()
                         && snapshot.outcome() != CaptureEngine.Outcome.DISCONNECTED)
-                    readyAfter = now() + config.timeoutMs;
+                    readyAfter = now() + runConfig.timeoutMs;
+                saving = true;
                 setFeedback("status.saving");
                 queue(ctx, () -> {
                     ctx.files.finish(snapshot);
                     mc.execute(() -> {
+                        saving = false;
+                        if (runConfig.resetCsvNameAfterExport) {
+                            if (task == null) config.csvFileName = CsvFileNames.afterExport(config.csvFileName, runConfig.csvFileName, true);
+                            if (task != null && config.tasks.contains(task)) task.csvName = CsvFileNames.afterExport(task.csvName, runConfig.csvFileName, true);
+                        }
                         lastDirectory = ctx.files.directory();
                         lastExportFile = ctx.files.lastCsvPath();
                         if (lastExportFile != null) {
                             config.lastExportFile = lastExportFile.toString();
                             saveConfig();
                         }
-                        playConfiguredSound(config.finishSound);
+                        playConfiguredSound(runConfig.finishSound);
                         if (context == ctx) setFeedback("notice.finished", snapshot.outcome(), snapshot.pages().size());
                         displayNotice(tr("notice.finished", snapshot.outcome(), snapshot.pages().size()));
+                        if (owner != null && owner == taskQueue) owner.exported(snapshot.outcome(), now());
                     });
                 });
             }
         }, server, started);
         config.remember(command.command()); saveConfig();
         setFeedback("status.started");
-        playConfiguredSound(config.startSound);
+        playConfiguredSound(runConfig.startSound);
         noticeKey("notice.capturing", command.command());
         if (send) sendLookup(command.command());
         return true;
@@ -183,6 +206,7 @@ public final class CoreTraceClient implements ClientModInitializer {
         }
         Minecraft mc = Minecraft.getInstance();
         if (mc.getConnection() == null) {
+            if (queueActive()) taskQueue.cancel();
             if (active()) engine.endKey(CaptureEngine.Outcome.DISCONNECTED, "reason.no_connection", now());
             return;
         }
@@ -200,7 +224,9 @@ public final class CoreTraceClient implements ClientModInitializer {
                 LOGGER.error(tr("notice.write_error"), error);
                 Minecraft.getInstance().execute(() -> {
                     if (context == ctx) {
+                        if (queueActive()) taskQueue.cancel();
                         if (active()) engine.endKey(CaptureEngine.Outcome.STORAGE_ERROR, "reason.storage_error", now());
+                        saving = false;
                         setFeedback("notice.storage_error");
                     }
                     noticeKey("notice.save_failed");
@@ -232,7 +258,7 @@ public final class CoreTraceClient implements ClientModInitializer {
         catch (IOException e) { noticeKey("notice.config_save", e.getMessage()); LOGGER.warn("Config", e); }
     }
     public void togglePause() { if (active()) engine.togglePause(now()); }
-    public void cancel() { if (active()) engine.endKey(CaptureEngine.Outcome.CANCELLED, "reason.cancelled", now()); }
+    public void cancel() { if (queueActive()) taskQueue.cancel(); if (active()) engine.endKey(CaptureEngine.Outcome.CANCELLED, "reason.cancelled", now()); }
     public void openExports() {
         try { Files.createDirectories(exports); openDirectory(exports); }
         catch (Exception e) { folderError(exports, e); }
@@ -248,7 +274,7 @@ public final class CoreTraceClient implements ClientModInitializer {
                 if (Files.isDirectory(exports)) try (var paths = Files.walk(exports, 2)) {
                     found = paths.filter(Files::isRegularFile)
                             .filter(p -> p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".csv"))
-                            .sorted(java.util.Comparator.<Path, String>comparing(p -> p.getParent().getFileName().toString()).reversed()
+                            .sorted(java.util.Comparator.comparingLong(CoreTraceClient::modifiedAt).reversed()
                                     .thenComparing(p -> p.getFileName().toString())).findFirst().orElse(null);
                 }
                 Path file = found;
@@ -259,6 +285,10 @@ public final class CoreTraceClient implements ClientModInitializer {
                 });
             } catch (IOException e) { Minecraft.getInstance().execute(() -> folderError(exports, e)); }
         });
+    }
+    private static long modifiedAt(Path path) {
+        try { return Files.getLastModifiedTime(path).toMillis(); }
+        catch (IOException e) { return Long.MIN_VALUE; }
     }
     private void openDirectory(Path directory) {
         Path absolute = directory.toAbsolutePath().normalize();
@@ -292,10 +322,43 @@ public final class CoreTraceClient implements ClientModInitializer {
         if (mc.player != null) mc.gui.hud.getChat().addClientSystemMessage(Component.literal("[CoreTrace] " + message));
         else LOGGER.info("[CoreTrace] {}", message);
     }
+    public boolean queueActive() { return taskQueue != null && taskQueue.active(); }
+    public boolean busy() { return active() || saving || queueActive(); }
+    public boolean startTasks() {
+        if (busy() || now() < readyAfter) { noticeKey("notice.busy"); return false; }
+        // Freeze both the task list and effective settings for this run.
+        var originals = java.util.List.copyOf(config.tasks);
+        var tasks = config.copy().tasks;
+        
+        final String finishSound = config.queueFinishSound;
+        try {
+            tasks.forEach(TaskDefinition::validate);
+            var settings = tasks.stream().map(t -> t.effective(config)).toList();
+            taskQueue = new TaskQueue(tasks, config.taskDelayMs, new TaskQueue.Host() {
+                private int index;
+                public boolean start(TaskDefinition task) {
+                    int current = index++;
+                    return begin(LookupCommand.parse(task.command).orElseThrow(), true, settings.get(current), originals.get(current));
+                }
+                public boolean command(String command) {
+                    var mc = Minecraft.getInstance();
+                    if (mc.getConnection() == null || mc.player == null) { noticeKey("queue.command_failed"); return false; }
+                    ownCommand = true; commandCancelled = false;
+                    try { mc.getConnection().sendCommand(command); if (commandCancelled) noticeKey("queue.command_failed"); return !commandCancelled; }
+                    finally { ownCommand = false; }
+                }
+                public void finished() { playConfiguredSound(finishSound); noticeKey("queue.finished"); }
+            });
+        } catch (IllegalArgumentException e) { noticeKey("queue.invalid"); return false; }
+        playConfiguredSound(config.queueStartSound);
+        taskQueue.start();
+        return queueActive();
+    }
     public boolean active() { return engine != null && engine.active(); }
     public CaptureEngine engine() { return engine; }
     public Config config() { return config; }
     public String status() {
+        if (queueActive()) return tr("queue.progress", taskQueue.position(), taskQueue.size()) + " · " + (active() ? engine.detail(language()) : feedback());
         if (active()) return engine.detail(language());
         if (now() < readyAfter) return tr("status.cooldown", (readyAfter - now()) / 1000 + 1, feedback());
         return feedback();

@@ -18,9 +18,10 @@ class CaptureEngineTest {
         Harness() { this(500); }
         Harness(int limit) { this("co l a:-block u:jose t:3d", Language.SPANISH, limit); }
         Harness(String command, Language language) { this(command, language, 500); }
-        Harness(String command, Language language, int limit) {
+        Harness(String command, Language language, int limit) { this(command, language, limit, true); }
+        Harness(String command, Language language, int limit, boolean acceptSinglePage) {
             engine = new CaptureEngine(LookupCommand.parse(command).orElseThrow(),
-                    new CaptureEngine.Settings(1500,30000,3500,limit,language), this, "example.test", now);
+                    new CaptureEngine.Settings(1500,30000,3500,limit,language,acceptSinglePage), this, "example.test", now);
         }
         boolean receive(String s) { return engine.accept(MessageData.plain(s, now),now); }
         void after(long ms) { now += ms; engine.tick(now); }
@@ -64,11 +65,27 @@ class CaptureEngineTest {
         Harness h=new Harness();h.body();h.after(3000);assertTrue(h.sent.isEmpty());h.footer(1,3);h.after(1500);
         assertEquals(List.of("co l 2"),h.sent);
     }
-    @Test void singlePageWithoutFooterIsExplicitlyInferred() {
-        Harness h=new Harness();h.body();h.after(3500);
+    @Test void singlePageWithoutFooterIsExplicitlyInferredWhenOptionIsOff() {
+        Harness h=new Harness("co l a:chat t:3d", Language.SPANISH, 500, false);h.body();h.after(3500);
         assertEquals(CaptureEngine.Outcome.SINGLE_PAGE_INFERRED,h.finalResult.outcome());
         assertFalse(h.finalResult.pages().getFirst().confirmed());assertTrue(h.sent.isEmpty());
         assertTrue(Report.summary(h.finalResult).contains("NO CONFIRMADO"));
+    }
+    @Test void defaultSinglePageIsSavedAndAcceptedAfterSettleWithoutClaimingServerConfirmation() {
+        Harness h = new Harness(); h.body(); h.after(3499); assertNull(h.finalResult);
+        h.after(1);
+        assertEquals(CaptureEngine.Outcome.SINGLE_PAGE_ACCEPTED, h.finalResult.outcome());
+        assertTrue(h.finalResult.outcome().successful()); assertEquals(1, h.finalResult.totalPages());
+        assertFalse(h.finalResult.pages().getFirst().confirmed());
+        assertEquals(1, Report.rows(h.finalResult).size()); assertTrue(h.sent.isEmpty());
+    }
+    @Test void lateEntriesRestartSinglePageSettleTimer() {
+        Harness h = new Harness(); h.body(); h.after(3000); h.receive(ENTRY); h.after(3499);
+        assertNull(h.finalResult); h.after(1); assertEquals(2, Report.rows(h.finalResult).size());
+    }
+    @Test void startingAtLaterPageIsNeverAcceptedAsCompleteSinglePage() {
+        Harness h = new Harness("co l 3", Language.ENGLISH); h.body(); h.after(3500);
+        assertEquals(CaptureEngine.Outcome.SINGLE_PAGE_INFERRED, h.finalResult.outcome());
     }
     @Test void missingSecondPageFooterIsPartialNotSinglePage() {
         Harness h=new Harness();h.body();h.footer(1,5);h.after(1500);h.body();h.after(3500);

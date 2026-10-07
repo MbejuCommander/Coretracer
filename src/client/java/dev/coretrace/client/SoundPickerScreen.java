@@ -12,6 +12,8 @@ import net.minecraft.network.chat.Component;
 /** Bounded widgets, even with thousands of vanilla events loaded. */
 final class SoundPickerScreen extends BaseScreen {
     private final boolean finishSound;
+    private final java.util.function.Supplier<String> getter;
+    private final java.util.function.Consumer<String> setter;
     private List<Choice> sounds = List.of(), matches = List.of();
     private EditBox search;
     private Button[] choices, previews;
@@ -19,13 +21,17 @@ final class SoundPickerScreen extends BaseScreen {
     private int offset, perPage;
 
     SoundPickerScreen(Screen parent, boolean finishSound) {
-        super(parent, "ui.title.sound_picker"); this.finishSound = finishSound;
+        this(parent, finishSound,
+            () -> finishSound ? CoreTraceClient.INSTANCE.config().finishSound : CoreTraceClient.INSTANCE.config().startSound,
+            id -> { if (finishSound) CoreTraceClient.INSTANCE.config().finishSound = id;
+                else CoreTraceClient.INSTANCE.config().startSound = id; CoreTraceClient.INSTANCE.saveConfig(); });
     }
-    private String selected() { return finishSound ? mod.config().finishSound : mod.config().startSound; }
-    private void select(String id) {
-        if (finishSound) mod.config().finishSound = id; else mod.config().startSound = id;
-        mod.saveConfig(); onClose();
+    SoundPickerScreen(Screen parent, boolean finishSound, java.util.function.Supplier<String> getter,
+            java.util.function.Consumer<String> setter) {
+        super(parent, "ui.title.sound_picker"); this.finishSound = finishSound; this.getter = getter; this.setter = setter;
     }
+    private String selected() { return getter.get(); }
+    private void select(String id) { setter.accept(id); onClose(); }
     @Override protected void init() {
         String term = search == null ? "" : search.getValue();
         super.init();

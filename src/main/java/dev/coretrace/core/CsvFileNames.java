@@ -17,6 +17,21 @@ public final class CsvFileNames {
             throw new IllegalArgumentException("Reserved Windows filename");
         return name;
     }
+    public static String afterExport(String current, String exported, boolean reset) {
+        if (!reset) return current;
+        try { return normalize(current).equals(normalize(exported)) ? "" : current; }
+        catch (IllegalArgumentException e) { return current; }
+    }
+    public static java.nio.file.Path reserveDirectory(java.nio.file.Path root, String csvName, String fallback) throws java.io.IOException {
+        java.nio.file.Files.createDirectories(root);
+        String stem = normalize(csvName);
+        if (stem.isEmpty()) stem = fallback;
+        for (int i = 1; ; i++) {
+            java.nio.file.Path candidate = root.resolve(stem + (i == 1 ? "" : " (" + i + ")"));
+            try { return java.nio.file.Files.createDirectory(candidate); }
+            catch (java.nio.file.FileAlreadyExistsException ignored) { }
+        }
+    }
     public static String fileName(String name, Language language, int part) {
         String stem = normalize(name);
         if (stem.isEmpty()) stem = language == Language.ENGLISH ? "records" : "registros";

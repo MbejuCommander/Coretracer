@@ -6,8 +6,13 @@ import java.util.List;
 /** One outstanding request at a time; all calls run on the Minecraft client thread. */
 public final class CaptureEngine {
     public enum Phase { WAITING, READING, BETWEEN, PAUSED, FINISHED }
-    public enum Outcome { COMPLETE, SINGLE_PAGE_INFERRED, EMPTY, CANCELLED, DISCONNECTED, TIMEOUT, LIMIT, MISMATCH, SERVER_ERROR, STORAGE_ERROR }
-    public record Settings(int delayMs, int timeoutMs, int settleMs, int maxPages, Language language) {
+    public enum Outcome { COMPLETE, SINGLE_PAGE_ACCEPTED, SINGLE_PAGE_INFERRED, EMPTY, CANCELLED, DISCONNECTED, TIMEOUT, LIMIT, MISMATCH, SERVER_ERROR, STORAGE_ERROR;
+        public boolean successful() { return this == COMPLETE || this == SINGLE_PAGE_ACCEPTED || this == EMPTY; }
+    }
+    public record Settings(int delayMs, int timeoutMs, int settleMs, int maxPages, Language language, boolean acceptSinglePage) {
+        public Settings(int delayMs, int timeoutMs, int settleMs, int maxPages, Language language) {
+            this(delayMs, timeoutMs, settleMs, maxPages, language, true);
+        }
         public Settings(int delayMs, int timeoutMs, int settleMs, int maxPages) {
             this(delayMs, timeoutMs, settleMs, maxPages, Language.SPANISH);
         }
@@ -124,8 +129,10 @@ public final class CaptureEngine {
             setDetail("status.requesting", expected, total);
             sink.send(command.pageCommand(expected));
         } else if (phase == Phase.READING && total == 0 && hadEntry && now - lastLine >= settings.settleMs()) {
+            boolean accepted = settings.acceptSinglePage() && expected == 1 && pages.isEmpty();
             commit(false);
-            endKey(Outcome.SINGLE_PAGE_INFERRED, "reason.inferred", now, settings.settleMs());
+            if (accepted) { total = 1; endKey(Outcome.SINGLE_PAGE_ACCEPTED, "reason.single_accepted", now, settings.settleMs()); }
+            else endKey(Outcome.SINGLE_PAGE_INFERRED, "reason.inferred", now, settings.settleMs());
         } else if ((phase == Phase.WAITING || phase == Phase.READING) && now - requestedAt >= settings.timeoutMs()) {
             endKey(Outcome.TIMEOUT, "reason.timeout", now);
         }

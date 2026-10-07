@@ -33,7 +33,7 @@ public final class SessionFiles implements AutoCloseable {
     public void begin(String command, String server, long started) throws IOException {
         Files.createDirectories(directory);
         log = Files.newBufferedWriter(directory.resolve("transcript.log"), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
-        log.write(tr("log.start", "1.2.1+26.3") + "\n");
+        log.write(tr("log.start", "1.4.0+26.3") + "\n");
         log.write(tr("log.metadata", command, MessageData.clean(server), Instant.ofEpochMilli(started), language.nativeName()) + "\n\n");
         log.flush();
     }

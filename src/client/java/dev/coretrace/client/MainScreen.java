@@ -33,12 +33,13 @@ public final class MainScreen extends BaseScreen {
         button(tr("ui.settings"), left, 157, third, () -> minecraft.gui.setScreen(new SettingsScreen(this)));
         button(tr("ui.last_export"), left + third + 6, 157, third, mod::openLast);
         button(tr("ui.export_folder"), left + (third + 6) * 2, 157, panelWidth - (third + 6) * 2, mod::openExports);
-        button(tr("common.back"), left, height - 28, panelWidth, this::onClose);
+        button(tr("queue.title"), left, height - 28, (panelWidth - 6) / 2, () -> minecraft.gui.setScreen(new TaskQueueScreen(this)));
+        button(tr("common.back"), left + (panelWidth - 6) / 2 + 6, height - 28, (panelWidth - 6) / 2, this::onClose);
         setInitialFocus(query);
     }
     @Override public void tick() {
-        boolean active = mod.active(); start.active = !active && minecraft.getConnection() != null;
-        pause.active = cancel.active = active;
+        boolean active = mod.active(); start.active = !mod.busy() && minecraft.getConnection() != null;
+        pause.active = active; cancel.active = mod.busy();
         pause.setMessage(Component.literal(tr(active && mod.engine().paused() ? "ui.resume" : "ui.pause")));
         boolean saved = LookupCommand.fromInput(query.getValue()).map(c -> mod.config().favorites.contains(c.command())).orElse(false);
         favorite.setMessage(Component.literal(tr(saved ? "ui.favorite.on" : "ui.favorite.off")));

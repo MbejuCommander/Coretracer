@@ -6,7 +6,12 @@ import net.minecraft.client.gui.screens.Screen;
 
 final class CsvColumnsScreen extends BaseScreen {
     private int page;
-    CsvColumnsScreen(Screen parent) { super(parent, "ui.title.csv_columns"); }
+    private final dev.coretrace.core.Config target;
+    private final Runnable persist;
+    CsvColumnsScreen(Screen parent) { this(parent, CoreTraceClient.INSTANCE.config(), CoreTraceClient.INSTANCE::saveConfig); }
+    CsvColumnsScreen(Screen parent, dev.coretrace.core.Config target, Runnable persist) {
+        super(parent, "ui.title.csv_columns"); this.target = target; this.persist = persist;
+    }
     @Override protected void init() {
         super.init(); int half=(panelWidth-6)/2;
         int perPage = Math.max(1, (height - 121) / 25) * 2;
@@ -15,9 +20,9 @@ final class CsvColumnsScreen extends BaseScreen {
         for (int i=start;i<Math.min(start+perPage,Report.CSV_COLUMNS.size());i++) {
             final String key=Report.CSV_COLUMNS.get(i); int row=(i-start)/2, col=(i-start)%2;
             int x=left+col*(half+6), y=58+row*25;
-            button((mod.config().csvColumns.contains(key)?"§a✓ ":"§7□ ")+key,x,y,half,()->{
-                var c=mod.config(); if(c.csvColumns.contains(key)) { if(c.csvColumns.size()>1)c.csvColumns.remove(key); }
-                else c.csvColumns.add(key); mod.saveConfig(); rebuildWidgets();
+            button((target.csvColumns.contains(key)?"§a✓ ":"§7□ ")+key,x,y,half,()->{
+                var c=target; if(c.csvColumns.contains(key)) { if(c.csvColumns.size()>1)c.csvColumns.remove(key); }
+                else c.csvColumns.add(key); persist.run(); rebuildWidgets();
             });
         }
         button(tr("common.previous"),left,height-54,half,()->{page--;rebuildWidgets();}).active = page > 0;
