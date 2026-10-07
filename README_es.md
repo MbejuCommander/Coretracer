@@ -10,14 +10,14 @@ Task delay usa **3000 ms** en configuraciones nuevas y al dejar el campo vacío.
 
 En **Cola de tareas**, aparece un triángulo junto a Task delay cuando el valor es menor de 3.000 ms. Al pasar el cursor muestra una advertencia; puedes guardar y ejecutar igualmente cualquier delay válido. El campo vacío usa 3.000 ms y no muestra la advertencia. Los valores menores siguen permitidos.
 
-### Página única y varios comandos (1.3.1)
+### Página única y varios comandos (1.4.0)
 
 **Ajustes → Captura → Aceptar página única sin pie** viene activado por defecto. Cuando CoreProtect omite el pie de paginación de la primera página, se espera el tiempo de cierre sin datos, se guarda y se continúa la cola. La exportación indica «Página única guardada»; la marca `page_confirmed` sigue siendo falsa porque el servidor no envió un pie. No se aplica a páginas posteriores de una consulta incompleta. Al desactivarlo se conserva «fin inferido, no confirmado» y la cola se detiene después de guardar. Las tareas heredan esta opción de los ajustes globales o pueden cambiarla en sus propios ajustes.
 
 En **Cola de tareas → Editar tarea → Comandos personalizados**, usa **Agregar**, **×** para eliminar y **↑ / ↓** para ordenar. No hay un límite fijo de comandos; el menú usa páginas. Cada comando tiene su delay en ms (vacío: 750), que se espera después del guardado o del comando anterior. Tras el último comando se espera el Task delay antes de la siguiente tarea. Una lista vacía omite los comandos. El comando único de versiones anteriores migra automáticamente con su delay.
 
 
-### Cola de tareas (1.3.0)
+### Cola de tareas (1.4.0)
 
 En **F8 → Cola de tareas**, usa **Agregar** para crear tareas, **×** para eliminarlas y **↑ / ↓** para cambiar su orden. La lista se guarda entre reinicios; no se ejecuta automáticamente al conectarte.
 
