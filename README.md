@@ -174,6 +174,6 @@ Build with **JDK 25** and the included wrapper: `./gradlew build` on Linux/macOS
 
 Version 1.4.0 built successfully with Gradle (`gradlew.bat test build --offline`) and passed **104 automated tests**, with no failures or errors. All 51 JAR classes were verified as Java 25 bytecode (major version 69). **The game UI and a live Minecraft/CoreProtect session remain untested.**
 
-For your first server check, use a small known lookup and compare its last page and transcript with the chat output. The Spanish [README](README.md) contains the equivalent instructions in Spanish.
+For your first server check, use a small known lookup and compare its last page and transcript with the chat output. The Spanish [README_es](README_es.md) contains the equivalent instructions in Spanish.
 
 The working project lives directly in this directory. `src/` contains sources and tests; `gradle/` and wrapper scripts support builds. JARs are generated under `build/libs/`. Caches, build outputs and release archives are not source files. The first build after cache cleanup may need to download dependencies.
