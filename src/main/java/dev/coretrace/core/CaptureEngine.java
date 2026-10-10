@@ -9,7 +9,10 @@ public final class CaptureEngine {
     public enum Outcome { COMPLETE, SINGLE_PAGE_ACCEPTED, SINGLE_PAGE_INFERRED, EMPTY, CANCELLED, DISCONNECTED, TIMEOUT, LIMIT, MISMATCH, SERVER_ERROR, STORAGE_ERROR;
         public boolean successful() { return this == COMPLETE || this == SINGLE_PAGE_ACCEPTED || this == EMPTY; }
     }
-    public record Settings(int delayMs, int timeoutMs, int settleMs, int maxPages, Language language, boolean acceptSinglePage) {
+    public record Settings(int delayMs, int timeoutMs, int settleMs, int maxPages, Language language, boolean acceptSinglePage, boolean smartCsv) {
+        public Settings(int delayMs, int timeoutMs, int settleMs, int maxPages, Language language, boolean acceptSinglePage) {
+            this(delayMs, timeoutMs, settleMs, maxPages, language, acceptSinglePage, false);
+        }
         public Settings(int delayMs, int timeoutMs, int settleMs, int maxPages, Language language) {
             this(delayMs, timeoutMs, settleMs, maxPages, language, true);
         }
@@ -54,14 +57,37 @@ public final class CaptureEngine {
     private long requestedAt, lastLine, nextAt, pausedAt;
     private boolean paused, hadEntry;
     private Snapshot result;
+    private boolean recreating, recreationHeader;
+    private long recreationReadyAt = -1;
+    private final SmartCsvOrder smartOrder = new SmartCsvOrder();
 
     public CaptureEngine(LookupCommand command, Settings settings, Sink sink, String server, long now) {
+        this(command, settings, sink, server, now, now);
+    }
+    private CaptureEngine(LookupCommand command, Settings settings, Sink sink, String server, long now, long startedAt) {
         this.command = command; this.settings = settings; this.sink = sink; this.server = server;
-        started = requestedAt = lastLine = now; expected = command.firstPage();
+        started = startedAt; requestedAt = lastLine = now; expected = command.firstPage();
+    }
+    public static CaptureEngine resume(LookupCommand command, Settings settings, Sink sink, String server,
+            long now, long startedAt, int page, int total, List<Page> saved) {
+        if (!command.query() || page < 1 || page > 9_999_999) throw new IllegalArgumentException("Invalid recovery query/page");
+        CaptureEngine engine = new CaptureEngine(command, settings, sink, server, now, startedAt);
+        if (settings.smartCsv()) return engine; // Refresh all server pages; never splice two different query results.
+        int previous = 0;
+        for (Page p : saved) {
+            if (p.number() != previous + 1 || p.number() >= page || !p.confirmed())
+                throw new IllegalArgumentException("Incomplete recovery pages");
+            engine.pages.add(p); engine.count += p.messages().size(); previous = p.number();
+        }
+        if (previous != page - 1) throw new IllegalArgumentException("Missing recovery page");
+        engine.expected = page; engine.total = total; engine.recreating = page > 1;
+        if (engine.recreating) engine.setDetail("recovery.recreating", page);
+        return engine;
     }
 
     public boolean accept(MessageData m, long now) {
         if (!active()) return false;
+        if (recreating) return acceptRecreation(m, now);
         boolean header = CoreProtectParser.header(m);
         var footer = CoreProtectParser.pagination(m);
         if (CoreProtectParser.prefixed(m)) {
@@ -109,10 +135,33 @@ public final class CaptureEngine {
         }
         if (phase != Phase.READING) return false;
         boolean entry = CoreProtectParser.entry(m);
+        if (entry && settings.smartCsv()) {
+            String error = smartOrder.accept(EventParser.parse(m, EventParser.query(command.command())).timestamp());
+            if (error != null) { append(m, now); endKey(Outcome.MISMATCH, error, now); return true; }
+        }
         if (entry || (hadEntry && CoreProtectParser.coordinates(m)) || m.text().strip().matches("-{3,}")) {
             hadEntry |= entry; append(m, now); return true;
         }
         return false; // Never collect normal player chat or unrelated system messages.
+    }
+
+    private boolean acceptRecreation(MessageData m, long now) {
+        // Rebuilding the server lookup produces page 1. None of these messages enter the saved data.
+        if (CoreProtectParser.failure(m) || CoreProtectParser.empty(m)) {
+            endKey(Outcome.SERVER_ERROR, "recovery.query_failed", now); return true;
+        }
+        boolean header = CoreProtectParser.header(m);
+        var footer = CoreProtectParser.pagination(m);
+        boolean related = header || footer.isPresent() || CoreProtectParser.entry(m)
+                || CoreProtectParser.coordinates(m) || CoreProtectParser.prefixed(m);
+        if (header) { recreationHeader = true; recreationReadyAt = -1; }
+        if (footer.isPresent() && recreationHeader) {
+            var p = footer.get();
+            if (p.current() != 1 || p.total() < expected || (total > 0 && p.total() != total))
+                endKey(Outcome.MISMATCH, "recovery.changed", now);
+            else { total = p.total(); recreationReadyAt = now + settings.delayMs(); }
+        } else if (related && recreationReadyAt >= 0) recreationReadyAt = now + settings.delayMs();
+        return related;
     }
 
     private void append(MessageData m, long now) {
@@ -124,6 +173,13 @@ public final class CaptureEngine {
     }
     public void tick(long now) {
         if (!active() || paused) return;
+        if (recreating) {
+            if (recreationReadyAt >= 0 && now >= recreationReadyAt) {
+                recreating = false; recreationReadyAt = -1; requestedAt = lastLine = now;
+                setDetail("status.requesting", expected, total); sink.send(command.pageCommand(expected));
+            } else if (now - requestedAt >= settings.timeoutMs()) endKey(Outcome.TIMEOUT, "recovery.query_failed", now);
+            return;
+        }
         if (phase == Phase.BETWEEN && now >= nextAt) {
             expected++; phase = Phase.WAITING; hadEntry = false; requestedAt = lastLine = now;
             setDetail("status.requesting", expected, total);
@@ -143,6 +199,7 @@ public final class CaptureEngine {
         else {
             long delta = now - pausedAt; requestedAt += delta; lastLine = now;
             nextAt = Math.max(nextAt, now + settings.delayMs()); paused = false;
+            if (recreationReadyAt >= 0) recreationReadyAt = now + settings.delayMs();
         }
     }
     public void end(Outcome outcome, String why, long now) {

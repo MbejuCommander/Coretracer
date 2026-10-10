@@ -106,8 +106,14 @@ public final class Report {
         return csv(s, CSV_COLUMNS);
     }
     public static String csv(CaptureEngine.Snapshot s, List<String> columns) {
+        return csv(s, columns, false);
+    }
+    public static String csv(CaptureEngine.Snapshot s, List<String> columns, boolean excelAutoColumns) {
         List<Integer> selected = CSV_COLUMNS.stream().map(CSV_COLUMNS::indexOf).filter(i -> columns.contains(CSV_COLUMNS.get(i))).toList();
-        StringBuilder b = new StringBuilder("\uFEFF").append(String.join(",", selected.stream().map(CSV_COLUMNS::get).toList())).append("\r\n");
+        StringBuilder b = new StringBuilder("\uFEFF");
+        // Excel delimiter hint; opt-in because generic CSV readers may treat it as data.
+        if (excelAutoColumns) b.append("sep=,\r\n");
+        b.append(String.join(",", selected.stream().map(CSV_COLUMNS::get).toList())).append("\r\n");
         for (Row r : rows(s)) {
             var e = r.entry(); var l = r.location();
             String[] cells = {String.valueOf(r.page()), String.valueOf(r.confirmedPage()), csvCell(e.queryAction()), csvCell(e.type()),

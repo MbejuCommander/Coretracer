@@ -17,6 +17,7 @@ public final class SessionFiles implements AutoCloseable {
     private final java.util.List<String> csvColumns;
     private final int csvPagesPerFile;
     private final String csvFileName;
+    private final boolean csvExcelAutoColumns;
     private Path lastCsvPath;
     private BufferedWriter log;
     public SessionFiles(Path directory) { this(directory, Language.SPANISH, new Config()); }
@@ -25,6 +26,7 @@ public final class SessionFiles implements AutoCloseable {
         this.directory = directory; this.language = language;
         this.csvColumns = java.util.List.copyOf(config.csvColumns); this.csvPagesPerFile = config.csvPagesPerFile;
         this.csvFileName = CsvFileNames.normalize(config.csvFileName);
+        this.csvExcelAutoColumns = config.csvExcelAutoColumns;
     }
     private String tr(String key, Object... args) { return Translations.text(language, key, args); }
     public static String summaryName(Language language) { return language == Language.ENGLISH ? "summary.txt" : "resumen.txt"; }
@@ -33,7 +35,7 @@ public final class SessionFiles implements AutoCloseable {
     public void begin(String command, String server, long started) throws IOException {
         Files.createDirectories(directory);
         log = Files.newBufferedWriter(directory.resolve("transcript.log"), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
-        log.write(tr("log.start", "1.4.0+26.3") + "\n");
+        log.write(tr("log.start", "1.5.1+26.3") + "\n");
         log.write(tr("log.metadata", command, MessageData.clean(server), Instant.ofEpochMilli(started), language.nativeName()) + "\n\n");
         log.flush();
     }
@@ -44,6 +46,12 @@ public final class SessionFiles implements AutoCloseable {
         for (String hover : m.hovers()) log.write("    [" + tr("log.hover") + "] " + hover.replace("\n", "\n    ") + "\n");
         log.flush();
     }
+    public void resume(int page) throws IOException {
+        log = Files.newBufferedWriter(directory.resolve("transcript.log"), StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        log.write("\n--- " + tr("recovery.log", page) + " ---\n");
+        log.flush();
+    }
     public void page(CaptureEngine.Page p) throws IOException {
         if (log != null) {
             log.write("--- " + tr("log.page_closed", p.number(), p.confirmed()) + " ---\n");
@@ -52,6 +60,7 @@ public final class SessionFiles implements AutoCloseable {
     }
     public void finish(CaptureEngine.Snapshot s) throws IOException {
         try {
+            var previousCsvNames = previousCsvNames();
             if (s.reportLanguage() != language) throw new IOException("Export language changed during capture");
             var csvNames = new java.util.ArrayList<String>();
             int chunkSize = csvPagesPerFile;
@@ -64,7 +73,7 @@ public final class SessionFiles implements AutoCloseable {
                 String name = CsvFileNames.fileName(csvFileName, language, 0);
                 csvNames.add(name);
                 lastCsvPath = directory.resolve(name);
-                writeAtomic(lastCsvPath, Report.csv(s, csvColumns));
+                writeAtomic(lastCsvPath, Report.csv(s, csvColumns, csvExcelAutoColumns));
             }
             else {
                 int chunk = 0;
@@ -77,7 +86,7 @@ public final class SessionFiles implements AutoCloseable {
                     csvNames.add(name);
                     Path csvPath = directory.resolve(name);
                     if (lastCsvPath == null) lastCsvPath = csvPath;
-                    writeAtomic(csvPath, Report.csv(part, csvColumns));
+                    writeAtomic(csvPath, Report.csv(part, csvColumns, csvExcelAutoColumns));
                 }
             }
             writeAtomic(directory.resolve(summaryName(language)), Report.summary(s, String.join(", ", csvNames)));
@@ -86,7 +95,24 @@ public final class SessionFiles implements AutoCloseable {
                 log.write("\nFINAL: " + Report.outcome(s.outcome(), language) + "\n" + s.detail() + "\n");
                 log.flush();
             }
+            if (s.outcome().successful()) {
+                close();
+                for (String previous : previousCsvNames) if (!csvNames.contains(previous))
+                    Files.deleteIfExists(directory.resolve(previous));
+            }
         } finally { close(); }
+    }
+    private java.util.List<String> previousCsvNames() throws IOException {
+        if (!Files.isRegularFile(directory.resolve(jsonName(language)))) return java.util.List.of();
+        String base = CsvFileNames.fileName(csvFileName, language, 0);
+        String stem = base.substring(0, base.length() - 4);
+        var pattern = java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(stem) + "(?:_[1-9][0-9]*)?\\.csv");
+        var names = new java.util.ArrayList<String>();
+        try (var files = Files.newDirectoryStream(directory)) {
+            for (Path file : files) if (Files.isRegularFile(file, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                    && pattern.matcher(file.getFileName().toString()).matches()) names.add(file.getFileName().toString());
+        }
+        return names;
     }
     public static void writeAtomic(Path target, String content) throws IOException {
         Path tmp = target.resolveSibling(target.getFileName() + ".tmp");

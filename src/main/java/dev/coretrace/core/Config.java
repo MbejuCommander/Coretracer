@@ -19,8 +19,16 @@ public final class Config {
     public int maxPages = 500;
     public boolean captureHovers = true;
     public boolean acceptSinglePage = true;
+    public boolean autoReconnect = false;
+    public long reconnectDelayMs = 5000;
+    public int reconnectAttempts = 3;
+    public boolean showReconnectHint = true;
+    public boolean autoResume = true;
+    public long autoResumeDelayMs = 4000;
     public List<String> csvColumns = new ArrayList<>(Report.CSV_COLUMNS);
     public int csvPagesPerFile = 0;
+    public boolean csvExcelAutoColumns = false;
+    public boolean csvSmart = false;
     public String csvFileName = "";
     public boolean resetCsvNameAfterExport = false;
     public List<TaskDefinition> tasks = new ArrayList<>();
@@ -52,6 +60,9 @@ public final class Config {
     public List<String> recentQueries = new ArrayList<>();
     public List<String> favorites = new ArrayList<>();
     public void normalize() {
+        if (reconnectDelayMs < 0) reconnectDelayMs = 5000;
+        if (reconnectAttempts < 1) reconnectAttempts = 3;
+        if (autoResumeDelayMs < 0) autoResumeDelayMs = 4000;
         language = Language.fromCode(language).code();
         if (tasks == null) tasks = new ArrayList<>();
         tasks.removeIf(java.util.Objects::isNull);
@@ -94,7 +105,8 @@ public final class Config {
         return new ArrayList<>(items.stream().filter(x -> x != null && LookupCommand.parse(x).isPresent()).distinct().limit(max).toList());
     }
     public Language selectedLanguage() { return Language.fromCode(language); }
-    public CaptureEngine.Settings settings() { normalize(); return new CaptureEngine.Settings(delayMs, timeoutMs, settleMs, maxPages, selectedLanguage(), acceptSinglePage); }
+    public boolean smartCsvEnabled() { return csvSmart && csvColumns.contains("server_timestamp"); }
+    public CaptureEngine.Settings settings() { normalize(); return new CaptureEngine.Settings(delayMs, timeoutMs, settleMs, maxPages, selectedLanguage(), acceptSinglePage, smartCsvEnabled()); }
     public void remember(String command) {
         recentQueries.remove(command); recentQueries.addFirst(command); normalize();
     }

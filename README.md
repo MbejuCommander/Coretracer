@@ -1,6 +1,40 @@
-**CoreTrace 1.4.0 — Minecraft Java 26.3 · Fabric · Client only**
+**CoreTrace 1.5.1 — Minecraft Java 26.3 · Fabric · Client only**
 
-### Task copies and profiles (1.4.0)
+### Smart CSV and recovery cleanup (1.5.1)
+
+**Settings → CSV export → Smart CSV** defaults to off. It is also available in each task's CSV settings and is preserved by copies and profiles. It requires the `server_timestamp` column; manually deselecting it makes the mode inactive and displays a red warning triangle with an explanation. **Clear all** keeps `server_timestamp`. Selecting that column again restores your saved Smart CSV preference.
+
+When resuming a capture in this mode, CoreTrace rereads **every page from page 1** in the same folder and replaces the previous dataset with the current response. For example, four new signs appear on the first page and earlier entries appear on the pages now assigned by the server. Events no longer within `t:7d` are excluded. This takes as long as a complete query; it does not jump directly to the former page 185. Already completed queue tasks are not repeated.
+
+The mod automatically captures the tooltip needed for `server_timestamp` and checks for valid timestamps from newest to oldest, including across page boundaries. Equal timestamps are allowed and identical events remain separate records. Missing valid timestamps or unexpected ordering/timezone changes stop capture with a partial result. Server-confirmed ordering and pagination are preserved without artificially sorting the CSV. This check does not provide a CoreProtect snapshot: changes during capture that preserve the count and ordering may still go undetected.
+
+The option is frozen when starting a capture or queue, like other CSV settings. Changing it does not alter an existing pending run's saved settings. With the option off, normal recovery resumes from the interrupted page.
+
+After all final export files are saved successfully and recovery state advances, `.recovery-page-N.json` files and their temporary files are deleted from that folder. They are retained if still needed for pending recovery or following interruption or export failure. When a refresh produces fewer CSV parts, obsolete parts of the same export name are also removed. The transcript, summary and session JSON are retained.
+
+### Recovery and automatic reconnect (1.5.0)
+
+Under **Settings → Recovery**, automatic resume defaults to **on**, with a **4000 ms** delay (also used for a blank field). Any nonnegative signed 64-bit integer is accepted. After returning to the same server, a red chat reminder explains how to disable it, and a countdown near the crosshair sounds once per second.
+
+Progress is saved per page in `coretrace/exports/<folder>/.recovery-page-N.json`; `coretrace/recovery.json` identifies the pending run. Keep both to recover after closing the client. With Smart CSV off, if interrupted on page 185, the mod repeats the original query, discards its initial page 1 response, waits for its confirmed footer and requests `/co l 185`. Earlier pages are retained and the interrupted page is read again, without adding replay duplicates to the CSV. Recovery reuses the original folder and export options. The text transcript retains earlier lines, including partial ones, and appends a resume marker.
+
+The queue is also restored: current task, remaining queries, custom-command position and remaining inter-command or inter-task delay. Run settings stay frozen. Commands are reserved on disk before dispatch to avoid repeating uncertain sends: an abrupt exit between reservation and dispatch can skip that command. There is no server execution acknowledgment. **Cancel** or **Discard saved recovery** removes the recovery reference without deleting exported files.
+
+Under **Settings → Recovery → Auto reconnect**, reconnect is **off by default**. The initial retry delay is **5000 ms**, with a maximum of **3 attempts**; blank fields use those defaults. Delays accept nonnegative signed 64-bit integers and attempt limits accept 1–2147483647. The green task-start reminder defaults to on and can be disabled here. Retries run from the disconnection screen; returning to the server menu or cancelling the connection stops them. Mod settings pause retries. Voluntarily leaving to the menu does not reconnect, and restarting the game does not initiate a connection automatically. Once connected again, the separate resume delay applies. Realms is excluded from automatic reconnect.
+
+Recovery requires an original filtered query, not an isolated numeric page command. An abrupt exit restores the last checkpoint written to disk; pending lines may need to be captured again. The query is executed again: relative filters such as `t:7d` and server changes can alter results. In normal recovery, a missing initial footer or changed page count stops recovery. An unchanged count does not guarantee identical events; CoreProtect does not provide an immutable snapshot here.
+
+### Select or clear all CSV columns (1.4.2)
+
+Under **Settings → CSV export → CSV columns**, one button beside the top hint switches between **Select all** and **Clear all**. It acts across all pages, keeping `server_timestamp` when clearing, and also works in a task’s own CSV settings. After clearing, choose the columns you need; at least one must be selected before returning to the menu. An empty selection is not saved.
+
+### Automatic columns in Excel (1.4.1)
+
+Under **Settings → CSV export → Automatic columns (Excel)**, enable automatic column separation when opening the CSV in Excel. It is **off by default**: disabling it preserves the previous format exactly. The option is also available in each task's CSV settings; tasks without their own CSV settings inherit the global option. Task copies and profiles preserve their own CSV settings.
+
+When enabled, it adds `sep=,` after the UTF-8 BOM and before the column header in every file, including split parts. Rows, selected columns, accents and quoting are preserved. It does not create styled tables or filters; those require a format such as XLSX. CSV readers that do not recognize the hint may display it as an extra row; leave the option off for those readers. The additional cost is 7 bytes per file, with no extra per-event work; no noticeable export slowdown is expected. Opening the result in Excel has not been tested in this environment.
+
+### Task copies and profiles (1.4.1)
 
 **Copy** duplicates a task immediately after the original and opens it for editing. It includes the query, CSV name, command list with delays and task-specific settings, with independent copies of all editable values. **Clear tasks** removes the current list while keeping saved profiles.
 
@@ -10,16 +44,16 @@ Task delay defaults to **3000 ms** for new configurations and blank fields. Exis
 
 In **Task queue**, a warning triangle appears beside Task delay when the value is below 3,000 ms. Hovering it says, “A delay below 3,000 ms may cause problems in some cases.” Any valid delay can still be saved and used. A blank field means 3,000 ms and does not show the warning. Lower values are still allowed.
 
-### Single-page results and multiple commands (1.4.0)
+### Single-page results and multiple commands (1.4.1)
 
 **Settings → Capture → Accept single page without footer** defaults to on. When CoreProtect omits the first page's pagination footer, the mod waits for the settle period without data, saves and continues the queue. The export reports “Single page saved”; `page_confirmed` stays false because no server footer was received. This does not accept missing later pages as complete. Turning it off preserves the inferred/unconfirmed outcome and stops the queue after saving. Tasks inherit this option or override it through their own capture settings.
 
 Under **Task queue → Edit task → Custom commands**, use **Add**, **×** to remove and **↑ / ↓** to reorder. There is no fixed command-count limit; the editor is paginated. Each command has its own delay in ms (blank: 750), measured after export or the preceding command. After the final command, the Task delay runs before the next task. Empty lists skip custom commands. Older single-command settings automatically migrate with their delay.
 
 
-### Task queue (1.4.0)
+### Task queue (1.4.1)
 
-Open **F8 → Task queue**. Use **Add**, **×** to delete and **↑ / ↓** to reorder. Tasks persist across restarts but never start automatically on connection.
+Open **F8 → Task queue**. Use **Add**, **×** to delete and **↑ / ↓** to reorder. Tasks persist across restarts; only an interrupted run can resume automatically on connection.
 
 Each task has a full CoreProtect lookup command, CSV name, optional CSV overrides and an optional list of custom commands. **Universal settings** defaults to on; turn it off to edit capture/audio settings independently. Per-task sounds default to off. Configure whole-queue sounds under **Queue sounds**.
 
@@ -29,7 +63,7 @@ Execution order: lookup → capture and export → each custom command after its
 
 Example: `/co l a:command t:3d`, CSV `Simply1`, universal settings on, custom command `/simply 2`. After saving, the command delay elapses, `/simply 2` is sent, then the Task delay elapses before the next lookup. Increase the Task delay for slow world changes: the mod waits for the configured interval, not a server teleport acknowledgment.
 
-Failed lookups, timeouts, page limits, cancellation, storage errors and disconnection stop the queue. Saved data is retained and pending tasks are not executed. Custom commands use the player's normal server permissions.
+Failed lookups, timeouts, page limits, cancellation, storage errors and disconnection stop the queue. Saved data is retained; after disconnection, recovery can continue pending tasks. Custom commands use the player's normal server permissions.
 
 ### Export folders and automatic name clearing
 
@@ -44,7 +78,7 @@ Install:
 
 1. Use a Minecraft Java **26.3** instance with **Fabric Loader 0.19.5 or later**. The game uses Java 25; the official launcher normally manages its runtime. Select Java 25 in other launchers.
 2. Install [Fabric API for 26.3](https://modrinth.com/mod/fabric-api/versions?g=26.3), version **0.161.0+26.3** or a later compatible version.
-3. Put `coretrace-1.4.0+26.3.jar` in the instance's `mods` folder. Remove the old CoreTrace JAR if upgrading. Your preferences and query history are retained.
+3. Put `coretrace-1.5.1+26.3.jar` in the instance's `mods` folder. Remove the old CoreTrace JAR if upgrading. Your preferences and query history are retained.
 4. Optionally install a [Mod Menu version compatible with 26.3](https://modrinth.com/mod/modmenu). F8 and `/coretrace` also open the menu without it.
 
 To select English, open **F8 → Settings → Language** and click the language button until it shows **Language: English**. Use **Settings → Language** to switch back to Español. The choice persists independently of Minecraft's language. Menus and new notifications change immediately; the report language is fixed when each capture starts. Existing chat messages and previously saved files are not rewritten.
@@ -172,8 +206,8 @@ The project includes MIT-licensed source, these instructions and synthetic examp
 
 Build with **JDK 25** and the included wrapper: `./gradlew build` on Linux/macOS or `gradlew.bat build` on Windows. The standard configuration uses Loom 1.17.20 and Gradle 9.5.1. Alternatively run `python build-portable.py` using Python 3.10+ and JDK 25+ (`JAVA_HOME`). This alternative verifies published dependency hashes and compiles against the actual unobfuscated Minecraft 26.3 classes, Fabric and optional Mod Menu APIs. It also runs the tests. Install the ordinary JAR from `build/libs`, not a sources JAR.
 
-Version 1.4.0 built successfully with Gradle (`gradlew.bat test build --offline`) and passed **104 automated tests**, with no failures or errors. All 51 JAR classes were verified as Java 25 bytecode (major version 69). **The game UI and a live Minecraft/CoreProtect session remain untested.**
+Version 1.5.1 built successfully with Gradle (`gradlew.bat test build --offline`) and passed **140 automated tests**, with no failures or errors. All 60 JAR classes were verified as Java 25 bytecode (major version 69). **The game UI and a live Minecraft/CoreProtect session remain untested.**
 
-For your first server check, use a small known lookup and compare its last page and transcript with the chat output. The Spanish [README_es](README_es.md) contains the equivalent instructions in Spanish.
+For your first server check, use a small known lookup and compare its last page and transcript with the chat output. The Spanish [README](README.md) contains the equivalent instructions in Spanish.
 
 The working project lives directly in this directory. `src/` contains sources and tests; `gradle/` and wrapper scripts support builds. JARs are generated under `build/libs/`. Caches, build outputs and release archives are not source files. The first build after cache cleanup may need to download dependencies.

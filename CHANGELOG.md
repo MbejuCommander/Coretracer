@@ -1,3 +1,33 @@
+**1.5.1 — Minecraft 26.3 / Java 25**
+
+- Add opt-in Smart CSV to global and per-task CSV settings: resume by refreshing all pages from page 1, including new events and their current page assignments.
+- Validate server timestamps in descending order without merging legitimate identical events; missing or inconsistent timestamps stop with a partial result.
+- Keep server_timestamp when clearing all columns. Manual deselection disables Smart CSV and displays a red tooltip warning.
+- Remove completed recovery page files only after export succeeds and persisted recovery state no longer depends on them.
+- Remove obsolete CSV parts after a successful shorter refresh.
+
+**1.5.0 — Minecraft 26.3 / Java 25**
+
+- Persist page checkpoints and frozen task queue state across disconnection and client restarts.
+- Recreate the original query, discard bootstrap page 1 and resume the interrupted page in the original export folder.
+- Add global recovery settings, a 4000 ms default delay, red chat reminder, crosshair countdown and per-second sound.
+- Add opt-in server reconnect, a configurable 5000 ms retry delay and 3-attempt default limit.
+- Add a configurable green reconnect reminder at each task start, in Spanish and English.
+- Preserve custom-command progress using a durable reservation before sending; uncertain sends are not replayed.
+- Extend tests for recovery, persistence, interrupted queues, countdown and reconnect scheduling.
+
+**1.4.2 — Minecraft 26.3 / Java 25**
+
+- Add one Select all / Clear all button to the CSV column picker, affecting every page and both global and per-task CSV settings.
+- Allow an empty draft while choosing a subset; require at least one column before leaving and do not persist an empty selection.
+- Cover the full, partial and empty selection transitions and persistence.
+
+**1.4.1 — Minecraft 26.3 / Java 25**
+
+- Optional Automatic columns (Excel) in CSV export, off by default. Adds a delimiter hint to each exported file without changing data rows or the default format.
+- Supports global and per-task CSV settings, copied tasks, saved profiles and split exports.
+- Adds regression coverage for encoding, unchanged default output, frozen settings, split files and task/profile persistence.
+
 **1.4.0 — Minecraft 26.3 / Java 25**
 
 - Task delay defaults to 3000 ms when blank or in new configurations; existing explicit delays and 750 ms command defaults are preserved.

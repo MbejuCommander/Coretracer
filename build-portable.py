@@ -17,7 +17,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / '.portable'
-VERSION = '1.4.0+26.3'
+VERSION = '1.5.1+26.3'
 MC = '26.3'
 API = '0.161.0+26.3'
 LOADER = '0.19.5'

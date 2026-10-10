@@ -1,8 +1,10 @@
-**CoreTrace 1.2.0 — CSV schema 2**
+**CoreTrace 1.5.1 — CSV schema 2**
 
 One row represents one captured event. This schema is identical in Spanish and English mode. Columns and machine identifiers are English; `action`, `content`, names and raw messages preserve the original server language. Files are `records.csv` for an English report or `registros.csv` for a Spanish report.
 
 The settings menu can export any non-empty subset of these columns. Optional splitting creates numbered files at page boundaries; each file has the selected header and retains the same CSV encoding and quoting rules. With the page limit set to `0`, the full capture goes into the original single CSV file.
+
+Optional **Automatic columns (Excel)** (off by default) inserts `sep=,` followed by CRLF immediately after the UTF-8 BOM in every CSV part. The next line remains the selected column header; the schema and data encoding are unchanged. Generic CSV readers must skip this hint line when the option is enabled. With the option off, the previous format is unchanged.
 
 | Column | Meaning |
 | --- | --- |
@@ -42,3 +44,5 @@ The English CE v24.0 phrases cover placed/broken blocks, login/logout, chat, com
 UTF-8 BOM, CRLF record delimiters and standard CSV quoting are used. Embedded quotes are doubled; embedded newlines remain inside quoted fields. Arbitrary text that begins, after whitespace, with `=`, `+`, `-` or `@` receives a protective leading apostrophe so spreadsheets do not evaluate it. The captured transcript and JSON retain that text without the added apostrophe. Validated numeric coordinates/amounts remain numeric. Minecraft formatting codes and unsupported control characters are removed at capture; an individual component's plain text is capped at 32768 characters, and at most 16 distinct tooltips are stored per component.
 
 `ejemplo-simulado/all-event-types.csv` is generated using the actual exporter from multiple synthetic queries. It demonstrates the categories without claiming a real server capture or a single all-category query. The per-query inputs are in `all-event-types.json`, and the reproducible generator is `examples/GenerateExamples.java`.
+
+Smart CSV (off by default) requires `server_timestamp`. On recovery it rereads the current query from page 1, preserving the server's page assignments and validating non-increasing timestamps. Equal timestamps and identical events are retained. It does not splice old and new rows or provide an immutable server snapshot. Clear all keeps `server_timestamp`; manual deselection disables the mode. Recovery page JSON files are temporary and are removed after successful final export and the recovery-state transition.

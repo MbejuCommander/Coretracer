@@ -35,6 +35,8 @@ public final class TaskDefinition {
         Config csv = csvSettings == null ? universal : csvSettings;
         result.csvColumns = new java.util.ArrayList<>(csv.csvColumns);
         result.csvPagesPerFile = csv.csvPagesPerFile;
+        result.csvExcelAutoColumns = csv.csvExcelAutoColumns;
+        result.csvSmart = csv.csvSmart;
         result.resetCsvNameAfterExport = csv.resetCsvNameAfterExport;
         result.csvFileName = CsvFileNames.normalize(csvName);
         if (universalSettings || taskSettings == null) {

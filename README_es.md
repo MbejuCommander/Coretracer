@@ -1,6 +1,40 @@
-**CoreTrace 1.4.0 — Minecraft Java 26.3 · Fabric · Solo cliente**
+**CoreTrace 1.5.1 — Minecraft Java 26.3 · Fabric · Solo cliente**
 
-### Copias y perfiles de tareas (1.4.0)
+### CSV inteligente y limpieza de recuperación (1.5.1)
+
+**Ajustes → Exportación CSV → CSV inteligente** viene desactivado por defecto. También está disponible en los ajustes CSV de cada tarea y se conserva en copias y perfiles. Necesita la columna `server_timestamp`; al desmarcarla manualmente, el modo queda inactivo y aparece un triángulo rojo con una explicación. **Desmarcar todo** conserva `server_timestamp`. Si vuelves a marcar la columna, se recupera la preferencia de CSV inteligente que habías elegido.
+
+Al reanudar una captura con este modo, CoreTrace vuelve a leer **todas las páginas desde la 1** en la misma carpeta y reemplaza el conjunto anterior por la respuesta actual. Por ejemplo, cuatro carteles nuevos quedan en la primera página y los anteriores aparecen en las páginas que ahora les asigna el servidor. Los eventos que ya no pertenecen al rango `t:7d` dejan de incluirse. Esto tarda lo que una consulta completa; no salta directamente a la antigua página 185. Las tareas ya terminadas de una cola no se repiten.
+
+El mod captura automáticamente la información emergente necesaria para `server_timestamp` y comprueba fechas válidas de más reciente a más antigua, incluso entre páginas. Fechas iguales se permiten y eventos idénticos se conservan como registros distintos. Si falta una fecha válida o se detecta un orden/zona horaria inesperado, se detiene con un resultado parcial. Conserva el orden y la paginación confirmados por el servidor, sin ordenar el CSV artificialmente. La comprobación no convierte CoreProtect en una instantánea: cambios durante la lectura que mantengan el total y el orden pueden seguir siendo indetectables.
+
+La opción se fija al iniciar la captura o cola, igual que los demás ajustes CSV. Cambiarla no altera una ejecución pendiente que ya guardó sus ajustes. Desactivada, se conserva la reanudación normal desde la página interrumpida.
+
+Después de guardar correctamente todos los archivos definitivos y actualizar el estado de recuperación, se borran los `.recovery-page-N.json` y sus temporales de esa carpeta. Se mantienen si aún son necesarios para una recuperación pendiente, o si hubo una interrupción o error de exportación. Si una actualización produce menos partes CSV, también se eliminan las partes antiguas del mismo nombre que ya no pertenecen al resultado. El transcript, resumen y JSON de sesión se conservan.
+
+### Recuperación y autoreconexión (1.5.0)
+
+En **Ajustes → Recuperación**, la reanudación automática viene **activada**, con una espera de **4000 ms** (también al dejar el campo vacío). Puedes cambiarla por cualquier entero no negativo representable de 64 bits. Al volver al mismo servidor, aparece un aviso rojo que explica cómo desactivarla y una cuenta regresiva cerca de la mira, con un sonido cada segundo.
+
+El progreso se guarda por páginas en `coretrace/exports/<carpeta>/.recovery-page-N.json`; `coretrace/recovery.json` identifica la ejecución pendiente. Conserva ambos para recuperar después de cerrar el cliente. Con CSV inteligente desactivado, si se interrumpe en la página 185, el mod repite la consulta original, descarta su respuesta inicial de la página 1, espera su pie confirmado y solicita `/co l 185`. Conserva las páginas anteriores y vuelve a leer la interrumpida, sin agregar duplicados por esa repetición al CSV. Reutiliza la carpeta y los ajustes de exportación originales. El registro de texto conserva las líneas anteriores, incluidas las parciales, y añade un marcador de reanudación.
+
+También recupera la cola: tarea actual, consultas pendientes, posición de los comandos personalizados y espera pendiente entre comandos o tareas. Las opciones de la ejecución permanecen congeladas. Los comandos se reservan en disco antes de enviarlos para no repetir un envío incierto: un cierre abrupto justo entre esa reserva y el envío puede omitir ese comando. No hay confirmación de ejecución del servidor. **Cancelar** o **Descartar reanudación guardada** elimina la referencia de recuperación, sin borrar los archivos exportados.
+
+En **Ajustes → Recuperación → Autoreconexión**, la reconexión está **desactivada por defecto**. La espera inicial entre intentos es **5000 ms** y el máximo es **3 intentos**; campos vacíos usan esos valores. Se admiten esperas enteras no negativas de 64 bits y de 1 a 2147483647 intentos. El aviso verde al iniciar cada tarea viene activado y se puede apagar aquí. Los reintentos se realizan desde la pantalla de desconexión; volver al menú de servidores o cancelar la conexión los detiene. Los ajustes del mod pausan los reintentos. No se reconecta al salir voluntariamente al menú ni abre una conexión por sí solo después de reiniciar el juego. Tras volver a entrar, se aplica la espera independiente de reanudación. Realms no utiliza esta reconexión automática.
+
+La recuperación requiere una consulta original con filtros, no una orden numérica aislada. Un cierre abrupto recupera el último punto escrito en disco; las líneas todavía pendientes pueden necesitar volver a capturarse. La consulta se vuelve a ejecutar: filtros relativos como `t:7d` y cambios en el servidor pueden modificar sus resultados. En la recuperación normal, si falta el pie inicial o cambia el total de páginas, la recuperación se detiene. Un total idéntico no garantiza que los eventos sean los mismos; CoreProtect no ofrece aquí una instantánea inmutable.
+
+### Seleccionar o desmarcar todas las columnas CSV (1.4.2)
+
+En **Ajustes → Exportación CSV → Columnas del CSV**, un botón junto al texto superior alterna entre **Marcar todo** y **Desmarcar todo**. Actúa sobre las columnas de todas las páginas y también funciona en los ajustes CSV propios de una tarea. Al desmarcar todo conserva `server_timestamp`; puedes quitarla manualmente. Siempre debe quedar al menos una columna antes de volver al menú. Una selección vacía no se guarda.
+
+### Columnas automáticas en Excel (1.4.1)
+
+En **Ajustes → Exportación CSV → Columnas automáticas (Excel)** puedes activar la separación automática de columnas al abrir el CSV en Excel. Está **desactivada por defecto**: apagada conserva exactamente el formato anterior. También está disponible en los ajustes CSV de cada tarea; si no hay ajustes propios, se usa la opción global. Las copias y perfiles conservan los ajustes CSV propios.
+
+Activada añade `sep=,` después del BOM UTF-8 y antes de los encabezados en cada archivo, incluidas las partes divididas. Conserva las filas, columnas elegidas, acentos y comillas. No crea tablas con estilos o filtros: eso requiere un formato como XLSX. Los lectores CSV que no reconocen esta indicación pueden mostrarla como una fila adicional; para ellos deja la opción apagada. El coste adicional es de 7 bytes por archivo, sin trabajo extra por evento; no se espera una diferencia perceptible al exportar. La apertura en Excel no se ha probado en este entorno.
+
+### Copias y perfiles de tareas (1.4.1)
 
 **Copiar** duplica una tarea justo después de la original y abre la copia para editarla. Conserva la consulta, el nombre CSV, los comandos con sus delays y los ajustes propios, sin compartir cambios con la original. **Vaciar tareas** elimina toda la lista actual; los perfiles guardados se conservan.
 
@@ -10,16 +44,16 @@ Task delay usa **3000 ms** en configuraciones nuevas y al dejar el campo vacío.
 
 En **Cola de tareas**, aparece un triángulo junto a Task delay cuando el valor es menor de 3.000 ms. Al pasar el cursor muestra una advertencia; puedes guardar y ejecutar igualmente cualquier delay válido. El campo vacío usa 3.000 ms y no muestra la advertencia. Los valores menores siguen permitidos.
 
-### Página única y varios comandos (1.4.0)
+### Página única y varios comandos (1.4.1)
 
 **Ajustes → Captura → Aceptar página única sin pie** viene activado por defecto. Cuando CoreProtect omite el pie de paginación de la primera página, se espera el tiempo de cierre sin datos, se guarda y se continúa la cola. La exportación indica «Página única guardada»; la marca `page_confirmed` sigue siendo falsa porque el servidor no envió un pie. No se aplica a páginas posteriores de una consulta incompleta. Al desactivarlo se conserva «fin inferido, no confirmado» y la cola se detiene después de guardar. Las tareas heredan esta opción de los ajustes globales o pueden cambiarla en sus propios ajustes.
 
 En **Cola de tareas → Editar tarea → Comandos personalizados**, usa **Agregar**, **×** para eliminar y **↑ / ↓** para ordenar. No hay un límite fijo de comandos; el menú usa páginas. Cada comando tiene su delay en ms (vacío: 750), que se espera después del guardado o del comando anterior. Tras el último comando se espera el Task delay antes de la siguiente tarea. Una lista vacía omite los comandos. El comando único de versiones anteriores migra automáticamente con su delay.
 
 
-### Cola de tareas (1.4.0)
+### Cola de tareas (1.4.1)
 
-En **F8 → Cola de tareas**, usa **Agregar** para crear tareas, **×** para eliminarlas y **↑ / ↓** para cambiar su orden. La lista se guarda entre reinicios; no se ejecuta automáticamente al conectarte.
+En **F8 → Cola de tareas**, usa **Agregar** para crear tareas, **×** para eliminarlas y **↑ / ↓** para cambiar su orden. La lista se guarda entre reinicios; solo una ejecución interrumpida puede reanudarse automáticamente al conectarte.
 
 Cada tarea tiene un comando completo de consulta CoreProtect, nombre CSV, ajustes CSV opcionales y un comando personalizado opcional. **Ajustes globales** viene activado. Al desactivarlo, **Ajustes de tarea** permite configurar captura y sonidos sin modificar los ajustes globales. Los sonidos de cada tarea comienzan apagados; los sonidos de toda la cola se eligen en **Sonidos de la cola**.
 
@@ -29,7 +63,7 @@ La secuencia es: consulta → captura y guardado → delay del comando personali
 
 Ejemplo: `/co l a:command t:3d`, CSV `Simply1`, ajustes globales activados y comando `/simply 2`. Al terminar de guardar, se espera el delay del comando, se envía `/simply 2`, se espera el Task delay y se inicia la siguiente tarea. Para cambios de mundo lentos, aumenta el Task delay: el mod espera el tiempo configurado, no una confirmación de teletransporte del servidor.
 
-Una consulta fallida, timeout, límite de páginas, cancelación, error de escritura o desconexión detiene la cola. Se conserva lo que haya podido guardarse; no se ejecutan las tareas pendientes. El comando personalizado se envía como comando del jugador con sus permisos normales.
+Una consulta fallida, timeout, límite de páginas, cancelación, error de escritura o desconexión detiene la cola. Se conserva lo que haya podido guardarse; tras una desconexión, la recuperación puede continuar las tareas pendientes. El comando personalizado se envía como comando del jugador con sus permisos normales.
 
 ### Carpetas y limpieza del nombre
 
@@ -44,7 +78,7 @@ Para instalarlo:
 
 1. Abre una instancia de **Minecraft Java 26.3** con **Fabric Loader 0.19.5 o posterior**. El juego utiliza Java 25; el launcher oficial suele gestionar su runtime. En otros launchers, selecciona Java 25.
 2. Instala [Fabric API para 26.3](https://modrinth.com/mod/fabric-api/versions?g=26.3), versión **0.161.0+26.3** o posterior compatible.
-3. Copia `coretrace-1.4.0+26.3.jar` dentro de la carpeta `mods` de esa instancia. Si tenías la versión anterior, retira su JAR para dejar una sola versión de CoreTrace. Tu configuración e historial se conservan.
+3. Copia `coretrace-1.5.1+26.3.jar` dentro de la carpeta `mods` de esa instancia. Si tenías la versión anterior, retira su JAR para dejar una sola versión de CoreTrace. Tu configuración e historial se conservan.
 4. Si quieres abrirlo desde la lista de mods, instala [Mod Menu compatible con 26.3](https://modrinth.com/mod/modmenu). Es opcional: F8 y `/coretrace` funcionan sin Mod Menu.
 5. Entra a un servidor que ya tenga CoreProtect funcionando y donde tu usuario pueda ejecutar las consultas.
 
@@ -167,7 +201,7 @@ Los comandos locales disponibles son:
 
 Una consulta numérica como `/coretrace start /co l 3` permite recoger desde una página existente: el informe indicará que faltan las anteriores. La captura automática del chat comienza con una consulta nueva con filtros, no con un cambio de página aislado. Se reconocen `co`, `core`, `coreprotect` y sus variantes con el espacio de nombres `coreprotect:`. No se aceptan `p:`, `page:` ni `#count` en una consulta nueva: usa una consulta normal desde la primera página.
 
-Durante una captura se bloquea el envío manual de otras órdenes `/co` para evitar sustituir la consulta que CoreProtect mantiene en memoria. Evita usar el inspector mientras está capturando. La pausa no libera esa consulta; cancela si necesitas ejecutar otra orden. Tras un final incierto, el asistente espera el tiempo de espera configurado antes de iniciar otra captura, para dejar llegar las respuestas tardías. No reintenta páginas automáticamente y no reanuda una consulta al cambiar de servidor. El historial permite iniciarla de nuevo.
+Durante una captura se bloquea el envío manual de otras órdenes `/co` para evitar sustituir la consulta que CoreProtect mantiene en memoria. Evita usar el inspector mientras está capturando. La pausa no libera esa consulta; cancela si necesitas ejecutar otra orden. Tras un final incierto, el asistente espera el tiempo de espera configurado antes de iniciar otra captura, para dejar llegar las respuestas tardías. No reintenta automáticamente una página que agota su tiempo ni reanuda en un servidor diferente. Tras una desconexión puede recuperar la consulta al volver al mismo servidor. El historial permite iniciarla de nuevo.
 
 El cliente solo ve los mensajes que recibe y necesita los permisos normales de CoreProtect. No obtiene acceso a la base de datos ni amplía permisos. La captura automática solo envía consultas; la cola también puede enviar el comando personalizado que configure el usuario. El único tráfico añadido durante una captura son comandos de consulta y paginación. Los archivos se guardan localmente, sin enviarlos a servicios externos.
 
@@ -194,7 +228,7 @@ python build-portable.py
 
 Configura `JAVA_HOME` apuntando al JDK 25 o posterior si no está en el PATH. El script descarga las clases oficiales de Minecraft 26.3, Fabric y Mod Menu, verifica sus hashes publicados, compila las fuentes y ejecuta las pruebas. Guarda las dependencias en `.portable/`, que no se distribuye. Minecraft 26.3 utiliza clases sin ofuscación, por lo que este camino genera el JAR sin una etapa de remapeo. El script requiere acceso de red a los repositorios oficiales. `build-portable.bat` permite ejecutarlo en Windows.
 
-La versión 1.4.0 se compiló con Gradle (`gradlew.bat test build --offline`) y pasó **104 pruebas automatizadas**, sin fallos ni errores. Las 51 clases del JAR se verificaron como bytecode de Java 25 (versión 69). **La interfaz y una sesión real de Minecraft/CoreProtect todavía no se han probado de principio a fin.**
+La versión 1.5.1 se compiló con Gradle (`gradlew.bat test build --offline`) y pasó **140 pruebas automatizadas**, sin fallos ni errores. Las 60 clases del JAR se verificaron como bytecode de Java 25 (versión 69). **La interfaz y una sesión real de Minecraft/CoreProtect todavía no se han probado de principio a fin.**
 
 Para la primera comprobación en tu servidor: realiza una consulta pequeña de un usuario y un periodo conocidos, verifica que se muestra su última página y compara el transcript con los resultados del chat. Si el formato no se reconoce, conserva el transcript parcial y una captura del chat para ajustar el lector a ese formato.
 

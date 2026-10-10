@@ -76,4 +76,52 @@ class NamedCsvExportTest {
             assertEquals(Report.csv(snapshot), Files.readString(output.resolve(SessionFiles.csvName(language))));
         }
     }
+    @Test void excelHintOnlyAddsSevenBytesAndPreservesEscapedUnicodeCells() {
+        var message = new MessageData("1.0/h ago - José: café, \"hola\"\nsegunda línea", List.of(), List.of(), 1000, false);
+        var s = new CaptureEngine.Snapshot("co l a:chat t:1h", "test", 1000, 2000, 1, 1,
+                CaptureEngine.Outcome.COMPLETE, "test", List.of(new CaptureEngine.Page(1, true, List.of(message))),
+                List.of(), List.of(), Language.SPANISH.code());
+        var columns = List.of("server_timestamp", "raw_text", "raw_coordinates");
+        String normal = Report.csv(s, columns);
+        assertTrue(normal.contains("José"));
+        assertTrue(normal.contains("\"\"hola\"\""));
+        assertEquals(normal, Report.csv(s, columns, false));
+        assertEquals("\uFEFFsep=,\r\n" + normal.substring(1), Report.csv(s, columns, true));
+    }
+    @Test void excelHintIsFrozenAndWrittenToEverySplitIncludingPendingPage() throws Exception {
+        var config = new Config(); config.csvExcelAutoColumns = true; config.csvPagesPerFile = 1;
+        config.csvColumns = new ArrayList<>(List.of("raw_text"));
+        var files = new SessionFiles(temp, Language.ENGLISH, config);
+        config.csvExcelAutoColumns = false;
+        export(files, snapshot(2, true, Language.ENGLISH));
+        for (int i = 1; i <= 3; i++) {
+            String csv = Files.readString(temp.resolve("records_" + i + ".csv"));
+            assertTrue(csv.startsWith("\uFEFFsep=,\r\nraw_text\r\n"));
+            assertEquals(3, csv.lines().count());
+            assertTrue(csv.contains("event " + i));
+        }
+    }
+    @Test void excelSettingPersistsAndTaskCsvOverridesUniversalAndCaptureSettings() throws Exception {
+        var config = new Config();
+        assertFalse(config.csvExcelAutoColumns);
+        config.csvExcelAutoColumns = true;
+        var task = new TaskDefinition(); task.command = "/co l a:chat t:1h";
+        task.universalSettings = false; task.taskSettings = new Config();
+        assertTrue(task.effective(config).csvExcelAutoColumns);
+        task.csvSettings = new Config();
+        assertFalse(task.effective(config).csvExcelAutoColumns);
+        task.csvSettings.csvExcelAutoColumns = true;
+        config.tasks.add(task);
+        config.saveTaskProfile("Excel");
+        config.save(temp.resolve("config.json"));
+        var restored = Config.load(temp.resolve("config.json"));
+        assertTrue(restored.csvExcelAutoColumns);
+        assertTrue(restored.tasks.getFirst().effective(restored).csvExcelAutoColumns);
+        restored.tasks.getFirst().csvSettings.csvExcelAutoColumns = false;
+        restored.loadTaskProfile(restored.taskProfiles.getFirst());
+        assertTrue(restored.tasks.getFirst().effective(restored).csvExcelAutoColumns);
+        var files = new SessionFiles(temp.resolve("single"), Language.ENGLISH, restored.tasks.getFirst().effective(restored));
+        export(files, snapshot(1, false, Language.ENGLISH));
+        assertTrue(Files.readString(files.lastCsvPath()).startsWith("\uFEFFsep=,\r\n"));
+    }
 }
