@@ -62,20 +62,20 @@ class SmartCsvTest {
         assertNull(order.accept("2026-10-10 12:00:00 UTC"));
         assertNotNull(order.accept("2026-10-10 11:00:00 GMT"));
     }
-    @Test void manualTimestampRemovalDisablesSmartModeAndClearAllPreservesIt() throws Exception {
+    @Test void timestampCannotBeRemovedWhileSmartModeIsEnabledAndClearAllPreservesIt() throws Exception {
         var c = smart(); var draft = new CsvColumnSelection(c.csvColumns);
         draft.toggleAll(); c.csvColumns = new ArrayList<>(draft.selected());
         assertTrue(c.smartCsvEnabled());
         draft.toggle("raw_text"); draft.toggle("server_timestamp");
         c.csvColumns = new ArrayList<>(draft.selected()); c.save(temp.resolve("config.json"));
         var loaded = Config.load(temp.resolve("config.json"));
-        assertFalse(loaded.smartCsvEnabled()); assertFalse(loaded.settings().smartCsv());
-        assertFalse(new Config().csvSmart);
+        assertTrue(loaded.smartCsvEnabled()); assertTrue(loaded.settings().smartCsv());
+        assertTrue(new Config().csvSmart);
     }
     @Test void taskCsvOverridesAndCopiesPreserveSmartChoice() {
         var universal = smart(); var task = new TaskDefinition(); task.command = QUERY;
         assertTrue(task.effective(universal).smartCsvEnabled());
-        task.csvSettings = new Config();
+        task.csvSettings = new Config(); task.csvSettings.csvSmart = false;
         assertFalse(task.effective(universal).smartCsvEnabled());
         task.csvSettings.csvSmart = true;
         assertTrue(task.copy().effective(new Config()).smartCsvEnabled());

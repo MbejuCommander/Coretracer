@@ -24,15 +24,17 @@ public final class Config {
     public int reconnectAttempts = 3;
     public boolean showReconnectHint = true;
     public boolean autoResume = true;
+    public boolean inspectRecovery = true;
     public long autoResumeDelayMs = 4000;
     public List<String> csvColumns = new ArrayList<>(Report.CSV_COLUMNS);
     public int csvPagesPerFile = 0;
     public boolean csvExcelAutoColumns = false;
-    public boolean csvSmart = false;
+    public boolean csvSmart = true;
     public String csvFileName = "";
     public boolean resetCsvNameAfterExport = false;
     public List<TaskDefinition> tasks = new ArrayList<>();
     public int taskDelayMs = 3000;
+    public boolean queueExcel = false;
     public List<TaskProfile> taskProfiles = new ArrayList<>();
     public String queueStartSound = "";
     public String queueFinishSound = "";
@@ -76,10 +78,11 @@ public final class Config {
         delayMs = Math.clamp(delayMs, 750, 30000);
         timeoutMs = Math.clamp(timeoutMs, 5000, 180000);
         settleMs = Math.clamp(settleMs, 1500, timeoutMs - 1000);
-        maxPages = Math.clamp(maxPages, 1, 5000);
+        maxPages = Math.clamp(maxPages, 1, 9_999_999);
         if (csvColumns == null || csvColumns.isEmpty()) csvColumns = new ArrayList<>(Report.CSV_COLUMNS);
         else csvColumns = new ArrayList<>(Report.CSV_COLUMNS.stream().filter(csvColumns::contains).toList());
         if (csvColumns.isEmpty()) csvColumns = new ArrayList<>(Report.CSV_COLUMNS);
+        if (csvSmart && !csvColumns.contains("server_timestamp")) csvColumns.add("server_timestamp");
         csvPagesPerFile = Math.clamp(csvPagesPerFile, 0, 5000);
         try { csvFileName = CsvFileNames.normalize(csvFileName); }
         catch (IllegalArgumentException e) { csvFileName = ""; }

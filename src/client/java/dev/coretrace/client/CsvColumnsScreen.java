@@ -13,6 +13,7 @@ final class CsvColumnsScreen extends BaseScreen {
     CsvColumnsScreen(Screen parent) { this(parent, CoreTraceClient.INSTANCE.config(), CoreTraceClient.INSTANCE::saveConfig); }
     CsvColumnsScreen(Screen parent, dev.coretrace.core.Config target, Runnable persist) {
         super(parent, "ui.title.csv_columns"); this.target = target; this.persist = persist;
+        target.normalize();
         this.selected = new CsvColumnSelection(target.csvColumns);
     }
     private void selectionChanged() {
@@ -37,10 +38,14 @@ final class CsvColumnsScreen extends BaseScreen {
             final String key=Report.CSV_COLUMNS.get(i); int row=(i-start)/2, col=(i-start)%2;
             int x=left+col*(half+6), y=58+row*25;
             boolean warning = key.equals("server_timestamp") && !selected.contains(key);
-            button((selected.contains(key)?"§a✓ ":"§7□ ")+key,x,y,warning ? half - 24 : half,()->{
+            var columnButton = button((selected.contains(key)?"§a✓ ":"§7□ ")+key,x,y,warning ? half - 24 : half,()->{
                 selected.toggle(key);
                 selectionChanged();
             });
+            if (key.equals("server_timestamp") && target.csvSmart) {
+                columnButton.active = false;
+                columnButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(net.minecraft.network.chat.Component.literal(tr("smart.required"))));
+            }
             if (warning) addRenderableWidget(new DelayWarningButton(x + half - 20, y, tr("smart.timestamp_warning"), 0xFFFF4545));
         }
         button(tr("common.previous"),left,height-54,half,()->{page--;rebuildWidgets();}).active = page > 0;

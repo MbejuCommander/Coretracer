@@ -14,7 +14,7 @@ class TaskSettingsTest {
         assertEquals(global.delayMs, effective.delayMs); assertEquals("", effective.startSound); assertEquals("", effective.finishSound);
         t.universalSettings = false; t.taskSettings = new Config(); t.taskSettings.delayMs = 2300; t.taskSettings.csvPagesPerFile = 5;
         effective = t.effective(global); assertEquals(2300, effective.delayMs); assertEquals(3, effective.csvPagesPerFile);
-        t.csvSettings = new Config(); t.csvSettings.csvPagesPerFile = 7; t.csvSettings.csvColumns = new ArrayList<>(List.of("raw_text"));
+        t.csvSettings = new Config(); t.csvSettings.csvSmart = false; t.csvSettings.csvPagesPerFile = 7; t.csvSettings.csvColumns = new ArrayList<>(List.of("raw_text"));
         effective = t.effective(global); assertEquals(7, effective.csvPagesPerFile); assertEquals(List.of("raw_text"), effective.csvColumns);
         effective.csvColumns.clear(); assertEquals(List.of("raw_text"), t.csvSettings.csvColumns);
         assertEquals("global", global.csvFileName); assertEquals(3, global.csvPagesPerFile);

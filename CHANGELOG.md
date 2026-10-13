@@ -1,3 +1,28 @@
+## 1.7.0 — Queue Excel mode / Modo Excel de la cola
+
+- Optional queue-wide XLSX export, off by default, with a bilingual tooltip and one sheet per task.
+- Streams CSV parts into numeric coordinates and literal text cells, with frozen headers and filters; handles empty tasks, duplicate names and sheet row overflow.
+- Publishes an updated workbook after each saved task, preserving prior output on failure. Queue recovery keeps the same workbook and replaces resumed-task sheets.
+- Cancel and save includes partial results before recovery cleanup. CSVs and workbook manifest remain available for rebuilding; tests cover restart, cancellation and write failure.
+- Updated Spanish and English documentation. Minecraft 26.3 / Java 25 unchanged.
+
+**1.6.1 — Minecraft 26.3 / Java 25**
+
+- Keep recovery checkpoints and the pointer until an explicitly cancelled capture finishes exporting its partial result.
+- Remove recovery files after a saved cancellation, including one requested while an export is in progress; keep them if exporting fails.
+- Stop queue commands on cancellation and retain the partial CSV, summary, JSON and transcript.
+- Add cancellation success and export-failure regression coverage.
+
+**1.6.0 — Minecraft 26.3 / Java 25**
+
+- Write CSV parts during capture, publish completed splits immediately and retain per-page recovery checkpoints.
+- Replace full in-memory capture history with disk-backed pages and a 16-page preview; stream final JSON and summary.
+- Remove the global 100,000-message protection, retain the 512-message page guard, and allow up to 9,999,999 pages with a red split recommendation above 5000.
+- Recover suspected accidental block inspections after an editable 4000 ms countdown and a quiet period; discard interrupted/bootstrap pages and preserve the active queue task.
+- Add angry/positive villager sounds and experience countdown sounds, a visible zero, and a three-attempt recovery limit reset after five stable pages.
+- Enable Smart CSV by default for new configurations and require server_timestamp while enabled; preserve existing explicit preferences.
+- Bound summary category memory, retain exact total counts and update the Spanish/English wiki.
+
 **1.5.1 — Minecraft 26.3 / Java 25**
 
 - Add opt-in Smart CSV to global and per-task CSV settings: resume by refreshing all pages from page 1, including new events and their current page assignments.

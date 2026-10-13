@@ -13,9 +13,12 @@ public final class RecoveryStore {
     public record Capture(String directory, String command, long startedAt, int page, int total, Config config) {
         public Capture at(int page, int total) { return new Capture(directory, command, startedAt, page, total, config); }
     }
-    public record State(String server, Capture capture, TaskQueue.State queue, String finishSound) {
-        public State withCapture(Capture value) { return new State(server, value, queue, finishSound); }
-        public State withQueue(TaskQueue.State value) { return new State(server, capture, value, finishSound); }
+    public record State(String server, Capture capture, TaskQueue.State queue, String finishSound, String excelDirectory) {
+        public State(String server, Capture capture, TaskQueue.State queue, String finishSound) {
+            this(server, capture, queue, finishSound, null);
+        }
+        public State withCapture(Capture value) { return new State(server, value, queue, finishSound, excelDirectory); }
+        public State withQueue(TaskQueue.State value) { return new State(server, capture, value, finishSound, excelDirectory); }
     }
     private static final Gson JSON = new GsonBuilder().setPrettyPrinting().create();
     private final Path pointer, exports;
@@ -34,7 +37,7 @@ public final class RecoveryStore {
             if (state == null || state.server() == null || state.server().isBlank()) throw new IllegalArgumentException("Missing server");
             if (state.capture() != null) {
                 Capture c = state.capture();
-                if (c.page() < 1 || c.page() > 5000 || c.total() < 0 || (c.total() > 0 && c.total() < c.page()) || c.config() == null
+                if (c.page() < 1 || c.page() > 9_999_999 || c.total() < 0 || (c.total() > 0 && c.total() < c.page()) || c.config() == null
                         || LookupCommand.parse(c.command()).filter(LookupCommand::query).isEmpty())
                     throw new IllegalArgumentException("Invalid capture recovery");
                 directory(c); c.config().normalize();
@@ -49,6 +52,10 @@ public final class RecoveryStore {
                         || !LookupCommand.parse(q.tasks().get(q.index()).command).orElseThrow().command().equals(state.capture().command())))
                     throw new IllegalArgumentException("Capture/queue mismatch");
             } else if (state.capture() == null) throw new IllegalArgumentException("Empty recovery");
+            if (state.excelDirectory() != null) {
+                if (state.queue() == null) throw new IOException("Excel recovery requires a queue");
+                QueueExcel.safeDirectory(exports, state.excelDirectory());
+            }
             return state;
         } catch (RuntimeException e) { throw new IOException("Invalid recovery file", e); }
     }
@@ -80,19 +87,6 @@ public final class RecoveryStore {
     }
     public List<CaptureEngine.Page> pages(Capture c) throws IOException {
         if (c.config().smartCsvEnabled()) return List.of();
-        var result = new ArrayList<CaptureEngine.Page>();
-        Path dir = directory(c);
-        int messages = 0;
-        for (int n = 1; n < c.page(); n++) {
-            try {
-                var p = JSON.fromJson(Files.readString(dir.resolve(".recovery-page-" + n + ".json")), CaptureEngine.Page.class);
-                if (p == null || p.number() != n || !p.confirmed() || p.messages().size() > 512)
-                    throw new IllegalArgumentException("Invalid page");
-                messages += p.messages().size();
-                if (messages > 100_000) throw new IllegalArgumentException("Too many recovery messages");
-                result.add(p);
-            } catch (RuntimeException e) { throw new IOException("Invalid saved page " + n, e); }
-        }
-        return List.copyOf(result);
+        return PageHistory.load(directory(c), 1, c.page() - 1);
     }
 }

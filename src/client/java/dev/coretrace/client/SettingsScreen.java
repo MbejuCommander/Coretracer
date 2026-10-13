@@ -20,6 +20,7 @@ final class SettingsScreen extends BaseScreen {
     SettingsScreen(Screen parent, dev.coretrace.core.Config target, int mode, Runnable persist) {
         super(parent, "ui.title.settings");
         this.target = target; this.mode = mode; this.persist = persist; this.tab = mode == 1 ? 1 : 0;
+        target.normalize();
         var c = target;
         values = new String[]{"" + c.delayMs, "" + c.timeoutMs, "" + c.settleMs, "" + c.maxPages, "" + c.csvPagesPerFile, c.csvFileName, "" + c.autoResumeDelayMs};
     }
@@ -29,7 +30,7 @@ final class SettingsScreen extends BaseScreen {
     @Override protected void init() {
         rememberFields(); java.util.Arrays.fill(fields, null);
         super.init(); int half = (panelWidth - 6) / 2, third = (panelWidth - 12) / 3;
-        String[] tabs = mode == 0
+        String[] tabs = mode != 1
                 ? new String[]{"ui.settings.tab_capture", "ui.settings.tab_csv", "ui.settings.tab_audio", "recovery.settings"}
                 : new String[]{"ui.settings.tab_capture", "ui.settings.tab_csv", "ui.settings.tab_audio"};
         int tabWidth = (panelWidth - (tabs.length - 1) * 6) / tabs.length;
@@ -50,7 +51,14 @@ final class SettingsScreen extends BaseScreen {
             fields[0] = field(tr("ui.settings.delay_field"), values[0], left, 121, half, 6);
             fields[1] = field(tr("ui.settings.timeout_field"), values[1], left + half + 6, 121, panelWidth - half - 6, 6);
             fields[2] = field(tr("ui.settings.settle_field"), values[2], left, 154, half, 6);
-            fields[3] = field(tr("ui.settings.limit_field"), values[3], left + half + 6, 154, panelWidth - half - 6, 4);
+            fields[3] = field(tr("ui.settings.limit_field"), values[3], left + half + 6, 154, panelWidth - half - 30, 7);
+            var pageWarning = addRenderableWidget(new DelayWarningButton(left + panelWidth - 20, 154, tr("stream.page_warning"), 0xFFFF4545));
+            fields[3].setResponder(value -> {
+                try { pageWarning.visible = Integer.parseInt(value) > 5000; }
+                catch (NumberFormatException e) { pageWarning.visible = false; }
+            });
+            try { pageWarning.visible = Integer.parseInt(values[3]) > 5000; }
+            catch (NumberFormatException e) { pageWarning.visible = false; }
             button(tr("ui.settings.single_page", yes(c.acceptSinglePage)), left, 177, panelWidth,
                     () -> { c.acceptSinglePage = !c.acceptSinglePage; persist.run(); rebuildWidgets(); })
                     .setTooltip(Tooltip.create(Component.literal(tr("ui.settings.single_page_hint"))));
@@ -67,17 +75,31 @@ final class SettingsScreen extends BaseScreen {
                     () -> { c.csvExcelAutoColumns = !c.csvExcelAutoColumns; persist.run(); rebuildWidgets(); })
                     .setTooltip(Tooltip.create(Component.literal(tr("ui.settings.excel_columns_hint"))));
             var smart = button(tr("smart.enabled", yes(c.smartCsvEnabled())), left + half + 6, 160, panelWidth - half - 6,
-                    () -> { c.csvSmart = !c.smartCsvEnabled(); persist.run(); rebuildWidgets(); })
+                    () -> {
+                        c.csvSmart = !c.csvSmart;
+                        if (c.csvSmart && !c.csvColumns.contains("server_timestamp")) c.csvColumns.add("server_timestamp");
+                        persist.run(); rebuildWidgets();
+                    })
                     ;
             smart.setTooltip(Tooltip.create(Component.literal(tr(c.csvColumns.contains("server_timestamp") ? "smart.hint" : "smart.timestamp_warning"))));
-            smart.active = c.csvColumns.contains("server_timestamp");
+
         } else if (tab == 3) {
-            button(tr("recovery.enabled", yes(c.autoResume)), left, 72, panelWidth,
-                    () -> { c.autoResume = !c.autoResume; persist.run(); rebuildWidgets(); });
-            fields[6] = field(tr("recovery.delay"), values[6], left, 113, panelWidth, 19);
+            button(tr("recovery.enabled", yes(c.autoResume)), left, 67, half,
+                    () -> { c.autoResume = !c.autoResume; persist.run(); rebuildWidgets(); }).active = mode == 0;
+            button(tr("inspect.enabled", yes(c.inspectRecovery)), left + half + 6, 67, panelWidth - half - 6,
+                    () -> { c.inspectRecovery = !c.inspectRecovery; persist.run(); rebuildWidgets(); })
+                    .setTooltip(Tooltip.create(Component.literal(tr("inspect.hint"))));
+            fields[6] = field(tr("recovery.delay"), values[6], left, 113, panelWidth - 24, 19);
+            var delayWarning = addRenderableWidget(new DelayWarningButton(left + panelWidth - 20, 113, tr("inspect.delay_warning")));
+            fields[6].setResponder(value -> {
+                try { delayWarning.visible = dev.coretrace.core.ResumeCountdown.parseDelay(value) < 4000; }
+                catch (IllegalArgumentException e) { delayWarning.visible = false; }
+            });
+            try { delayWarning.visible = dev.coretrace.core.ResumeCountdown.parseDelay(values[6]) < 4000; }
+            catch (IllegalArgumentException e) { delayWarning.visible = false; }
             fields[6].setHint(Component.literal("4000"));
-            button(tr("reconnect.title"), left, 158, half, () -> minecraft.gui.setScreen(new ReconnectSettingsScreen(this)));
-            button(tr("recovery.discard"), left + half + 6, 158, panelWidth - half - 6, () -> { mod.discardRecovery(); rebuildWidgets(); })
+            if (mode == 0) button(tr("reconnect.title"), left, 158, half, () -> minecraft.gui.setScreen(new ReconnectSettingsScreen(this)));
+            if (mode == 0) button(tr("recovery.discard"), left + half + 6, 158, panelWidth - half - 6, () -> { mod.discardRecovery(); rebuildWidgets(); })
                     .active = mod.hasRecovery() && !mod.active() && !mod.queueActive();
         } else {
             soundButton(false, 92); soundButton(true, 142);
@@ -107,7 +129,7 @@ final class SettingsScreen extends BaseScreen {
             catch (IllegalArgumentException e) { error = "recovery.invalid_delay"; tab = 3; rebuildWidgets(); return false; }
             int d = Integer.parseInt(values[0]), t = Integer.parseInt(values[1]);
             int s = Integer.parseInt(values[2]), m = Integer.parseInt(values[3]), cp = Integer.parseInt(values[4]);
-            if (d < 750 || d > 30000 || t < 5000 || t > 180000 || s < 1500 || s > t - 1000 || m < 1 || m > 5000 || cp < 0 || cp > 5000)
+            if (d < 750 || d > 30000 || t < 5000 || t > 180000 || s < 1500 || s > t - 1000 || m < 1 || m > 9_999_999 || cp < 0 || cp > 5000)
                 throw new IllegalArgumentException();
             var c = target;
             c.delayMs = d; c.timeoutMs = t; c.settleMs = s; c.maxPages = m; c.csvPagesPerFile = cp;

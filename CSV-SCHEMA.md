@@ -1,4 +1,6 @@
-**CoreTrace 1.5.1 — CSV schema 2**
+**CoreTrace 1.7.0 — CSV schema 2**
+
+Queue Excel mode is an optional `.xlsx` projection of these CSV exports. Each task keeps its selected columns in a separate sheet; all of that task's CSV parts are read in order with one header. The CSV schema and recovery page format are unchanged. See the English or Spanish README for workbook naming, row limits, recovery and cancellation behavior.
 
 One row represents one captured event. This schema is identical in Spanish and English mode. Columns and machine identifiers are English; `action`, `content`, names and raw messages preserve the original server language. Files are `records.csv` for an English report or `registros.csv` for a Spanish report.
 
@@ -45,4 +47,6 @@ UTF-8 BOM, CRLF record delimiters and standard CSV quoting are used. Embedded qu
 
 `ejemplo-simulado/all-event-types.csv` is generated using the actual exporter from multiple synthetic queries. It demonstrates the categories without claiming a real server capture or a single all-category query. The per-query inputs are in `all-event-types.json`, and the reproducible generator is `examples/GenerateExamples.java`.
 
-Smart CSV (off by default) requires `server_timestamp`. On recovery it rereads the current query from page 1, preserving the server's page assignments and validating non-increasing timestamps. Equal timestamps and identical events are retained. It does not splice old and new rows or provide an immutable server snapshot. Clear all keeps `server_timestamp`; manual deselection disables the mode. Recovery page JSON files are temporary and are removed after successful final export and the recovery-state transition.
+Smart CSV (on by default for new configurations) requires `server_timestamp`. On recovery it rereads the current query from page 1, preserving the server's page assignments and validating non-increasing timestamps. Equal timestamps and identical events are retained. It does not splice old and new rows or provide an immutable server snapshot. Clear all keeps `server_timestamp`; the column cannot be manually deselected until Smart CSV is disabled. Enabling Smart CSV restores the column. Recovery page JSON files are temporary. They are removed after a completed export or a successfully saved cancellation, once the recovery reference has been cleared. Failed partial exports keep the checkpoints.
+
+CSV parts are written progressively and published when their configured page boundary closes. The open part uses a `.csv.tmp` suffix. Recovery still uses per-page JSON, not matching CSV timestamps. Capture history and final JSON use disk-backed page reads; the recent in-game preview is limited to 16 pages.

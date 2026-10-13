@@ -26,7 +26,7 @@ class RecoveryTest {
     }
     private CaptureEngine resume(int page, int total, Sink sink) {
         return CaptureEngine.resume(LookupCommand.parse("co l a:sign t:7d").orElseThrow(),
-                new Config().settings(), sink, "example.test", 1000, 1, page, total, pages(page - 1));
+                ProgressiveCaptureTest.normal().settings(), sink, "example.test", 1000, 1, page, total, pages(page - 1));
     }
     private void body(CaptureEngine engine, long now) {
         engine.accept(MessageData.plain(HEADER, now), now);
@@ -76,7 +76,7 @@ class RecoveryTest {
         body(engine, 2600); engine.endKey(CaptureEngine.Outcome.DISCONNECTED, "reason.disconnected", 2700);
         assertFalse(first.result.pending().isEmpty());
         Sink second = new Sink(); var recovered = CaptureEngine.resume(LookupCommand.parse(first.result.command()).orElseThrow(),
-                new Config().settings(), second, "example.test", 1000, 1, 2, 3, first.result.pages());
+                ProgressiveCaptureTest.normal().settings(), second, "example.test", 1000, 1, 2, 3, first.result.pages());
         body(recovered, 1000); footer(recovered, 1, 3, 1000); recovered.tick(2500);
         body(recovered, 2600); footer(recovered, 2, 3, 2600); recovered.tick(4100);
         body(recovered, 4200); footer(recovered, 3, 3, 4200);
@@ -90,7 +90,7 @@ class RecoveryTest {
     @Test void pagesAndFrozenSettingsSurviveAProcessRestart() throws Exception {
         Path exports = Files.createDirectories(temp.resolve("exports")); Files.createDirectories(exports.resolve("julio"));
         var store = new RecoveryStore(temp.resolve("recovery.json"), exports);
-        var config = new Config(); config.csvFileName = "julio"; config.csvExcelAutoColumns = true;
+        var config = ProgressiveCaptureTest.normal(); config.csvFileName = "julio"; config.csvExcelAutoColumns = true;
         var capture = new RecoveryStore.Capture("julio", "co l a:sign t:7d", 123, 3, 4, config);
         for (var p : pages(2)) store.writePage(capture, p);
         store.save(new RecoveryStore.State("example.test", capture, null, ""));
@@ -106,7 +106,7 @@ class RecoveryTest {
     @Test void incompleteNewPageCannotInvalidateThePreviousCheckpoint() throws Exception {
         Path exports = Files.createDirectories(temp.resolve("exports")); Files.createDirectories(exports.resolve("run"));
         var store = new RecoveryStore(temp.resolve("recovery.json"), exports);
-        var capture = new RecoveryStore.Capture("run", "co l a:sign t:7d", 1, 2, 5, new Config());
+        var capture = new RecoveryStore.Capture("run", "co l a:sign t:7d", 1, 2, 5, ProgressiveCaptureTest.normal());
         store.writePage(capture, pages(1).getFirst());
         store.save(new RecoveryStore.State("example.test", capture, null, ""));
         Files.writeString(exports.resolve("run/.recovery-page-2.json.tmp"), "partial");
@@ -116,7 +116,7 @@ class RecoveryTest {
     @Test void recoveryCannotWriteOutsideExports() throws Exception {
         Path exports = Files.createDirectories(temp.resolve("exports"));
         var store = new RecoveryStore(temp.resolve("recovery.json"), exports);
-        var capture = new RecoveryStore.Capture("..", "co l a:sign t:7d", 1, 1, 0, new Config());
+        var capture = new RecoveryStore.Capture("..", "co l a:sign t:7d", 1, 1, 0, ProgressiveCaptureTest.normal());
         assertThrows(java.io.IOException.class, () -> store.writePage(capture, pages(1).getFirst()));
     }
     @Test void countdownBeepsOncePerElapsedSecondAndSupportsZeroAndLargeDelays() {
@@ -146,21 +146,21 @@ class RecoveryTest {
         Path exports = Files.createDirectories(temp.resolve("exports"));
         var store = new RecoveryStore(temp.resolve("recovery.json"), exports);
         var task = new TaskDefinition(); task.command = "/co l a:sign t:7d"; task.csvName = "one";
-        task.universalSettings = false; task.taskSettings = new Config(); task.taskSettings.delayMs = 2200;
-        task.csvSettings = new Config(); task.csvSettings.csvColumns = new ArrayList<>(List.of("raw_text"));
+        task.universalSettings = false; task.taskSettings = ProgressiveCaptureTest.normal(); task.taskSettings.delayMs = 2200;
+        task.csvSettings = ProgressiveCaptureTest.normal(); task.csvSettings.csvColumns = new ArrayList<>(List.of("raw_text"));
         task.commands.add(new TaskCommand("/alreadySent", 100)); task.commands.add(new TaskCommand("/pending", 200));
         var queue = new TaskQueue.State(List.of(task), 3000, 0, 1, TaskQueue.Phase.CUSTOM, 123);
         store.save(new RecoveryStore.State("example.test", null, queue, "minecraft:ui.toast.in"));
         var restored = store.load();
         assertEquals(1, restored.queue().commandIndex()); assertEquals(123, restored.queue().remainingMs());
         var t = restored.queue().tasks().getFirst();
-        assertEquals(2200, t.effective(new Config()).delayMs);
-        assertEquals(List.of("raw_text"), t.effective(new Config()).csvColumns);
+        assertEquals(2200, t.effective(ProgressiveCaptureTest.normal()).delayMs);
+        assertEquals(List.of("raw_text"), t.effective(ProgressiveCaptureTest.normal()).csvColumns);
         assertEquals("/pending", t.commands.get(1).command);
         task.csvSettings.csvColumns.clear(); assertEquals(List.of("raw_text"), t.csvSettings.csvColumns);
     }
     @Test void resumedExportReusesTheFolderAndWritesEachPageOnlyOnce() throws Exception {
-        var config = new Config(); config.csvFileName = "julio"; config.csvPagesPerFile = 1;
+        var config = ProgressiveCaptureTest.normal(); config.csvFileName = "julio"; config.csvPagesPerFile = 1;
         Path directory = temp.resolve("julio");
         var partial = new CaptureEngine.Snapshot("co l a:sign t:7d", "test", 1, 10, 1, 2,
                 CaptureEngine.Outcome.DISCONNECTED, "test", pages(1), List.of(MessageData.plain(ENTRY, 10)), List.of(), "es_es");

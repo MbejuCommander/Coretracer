@@ -62,7 +62,16 @@ public final class Report {
     }
     public static String summary(CaptureEngine.Snapshot s, String csvFiles) {
         Language lang = s.reportLanguage();
-        var rows = rows(s);
+        var stats = new SummaryStats(lang);
+        var query = EventParser.query(s.command());
+        for (var page : s.pages()) {
+            var batch = new ArrayList<Row>();
+            appendRows(batch, page.number(), page.confirmed(), page.messages(), query);
+            stats.add(batch);
+        }
+        var pendingRows = new ArrayList<Row>();
+        appendRows(pendingRows, s.pages().isEmpty() ? s.firstPage() : s.pages().getLast().number() + 1, false, s.pending(), query);
+        stats.add(pendingRows);
         StringBuilder b = new StringBuilder(tr(lang, "report.title")).append("\n\n");
         line(b, lang, "state", outcome(s.outcome(), lang));
         line(b, lang, "reason", s.detail());
@@ -75,28 +84,51 @@ public final class Report {
         line(b, lang, "closed_pages", s.pages().size());
         line(b, lang, "total_pages", s.totalPages() > 0 ? s.totalPages() : tr(lang, "report.unannounced"));
         line(b, lang, "pending_lines", s.pending().size());
-        line(b, lang, "events", rows.size());
-        line(b, lang, "confirmed_events", rows.stream().filter(Row::confirmedPage).count());
-        line(b, lang, "unclassified_events", rows.stream().filter(r -> r.action().equals("unclassified")).count());
-        line(b, lang, "uncertain_events", rows.stream().filter(r -> !r.entry().parseStatus().equals("parsed")).count());
-        line(b, lang, "struck_events", rows.stream().filter(Row::struckThrough).count());
+        line(b, lang, "events", stats.events);
+        line(b, lang, "confirmed_events", stats.confirmed);
+        line(b, lang, "unclassified_events", stats.unclassified);
+        line(b, lang, "uncertain_events", stats.uncertain);
+        line(b, lang, "struck_events", stats.struck);
         if (s.firstPage() > 1) b.append(tr(lang, "report.partial_scope", s.firstPage())).append('\n');
         b.append('\n').append(tr(lang, "report.notes")).append('\n');
         b.append('\n').append(tr(lang, "report.by_actor")).append('\n');
-        counts(b, rows.stream().map(r -> r.actor().isEmpty() ? tr(lang, "report.unidentified") : r.actor()).toList(), lang);
+        counts(b, stats.actors, lang);
         b.append('\n').append(tr(lang, "report.by_type")).append('\n');
-        counts(b, rows.stream().map(r -> tr(lang, "type." + r.entry().type())).toList(), lang);
+        counts(b, stats.types, lang);
         b.append('\n').append(tr(lang, "report.by_action")).append('\n');
-        counts(b, rows.stream().map(r -> actionLabel(r.action(), lang)).toList(), lang);
+        counts(b, stats.actions, lang);
         b.append('\n').append(tr(lang, "report.by_material")).append('\n');
-        counts(b, rows.stream().map(Row::material).filter(x -> !x.isBlank()).toList(), lang);
+        counts(b, stats.materials, lang);
+        if (stats.grouped) b.append(tr(lang, "report.grouped")).append('\n');
         b.append('\n').append(tr(lang, "report.files", csvFiles, SessionFiles.jsonName(lang))).append('\n');
         return b.toString();
     }
-    private static void counts(StringBuilder b, List<String> values, Language language) {
-        Map<String, Integer> totals = new LinkedHashMap<>();
-        for (String v : values) totals.merge(v, 1, Integer::sum);
-        totals.entrySet().stream().sorted(Map.Entry.<String, Integer>comparingByValue(Comparator.reverseOrder())
+    private static final class SummaryStats {
+        long events, confirmed, unclassified, uncertain, struck;
+        boolean grouped;
+        final Language language;
+        final Map<String, Long> actors = new LinkedHashMap<>(), types = new LinkedHashMap<>(),
+                actions = new LinkedHashMap<>(), materials = new LinkedHashMap<>();
+        SummaryStats(Language language) { this.language = language; }
+        void add(List<Row> rows) {
+            for (var r : rows) {
+                events++; if (r.confirmedPage()) confirmed++;
+                if (r.action().equals("unclassified")) unclassified++;
+                if (!r.entry().parseStatus().equals("parsed")) uncertain++;
+                if (r.struckThrough()) struck++;
+                add(actors, r.actor().isEmpty() ? tr(language, "report.unidentified") : r.actor());
+                add(types, tr(language, "type." + r.entry().type()));
+                add(actions, actionLabel(r.action(), language));
+                if (!r.material().isBlank()) add(materials, r.material());
+            }
+        }
+        void add(Map<String, Long> counts, String key) {
+            if (!counts.containsKey(key) && counts.size() >= 4096) { key = tr(language, "report.other_groups"); grouped = true; }
+            counts.merge(key, 1L, Long::sum);
+        }
+    }
+    private static void counts(StringBuilder b, Map<String, Long> totals, Language language) {
+        totals.entrySet().stream().sorted(Map.Entry.<String, Long>comparingByValue(Comparator.reverseOrder())
                 .thenComparing(Map.Entry.comparingByKey())).limit(100)
                 .forEach(e -> b.append(e.getKey()).append(": ").append(e.getValue()).append('\n'));
         if (totals.isEmpty()) b.append(tr(language, "report.no_classifiable")).append('\n');

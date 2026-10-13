@@ -37,12 +37,18 @@ final class TaskQueueScreen extends BaseScreen {
         button(tr("queue.clear"), left + third + 6, 66, third, () -> {
             mod.config().tasks.clear(); mod.saveConfig(); page = 0; rebuildWidgets();
         }).active = !mod.busy() && !mod.config().tasks.isEmpty();
-        int perPage = Math.max(1, (height - 168) / 27);
+        var excel = button(tr("queue.excel", yes(mod.config().queueExcel)), left, 92, panelWidth, () -> {
+            mod.config().queueExcel = !mod.config().queueExcel; mod.saveConfig(); rebuildWidgets();
+        });
+        excel.active = !mod.busy();
+        excel.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
+                net.minecraft.network.chat.Component.literal(tr("queue.excel.tooltip"))));
+        int perPage = Math.max(1, (height - 194) / 27);
         var tasks = mod.config().tasks;
         int pages = Math.max(1, (tasks.size() + perPage - 1) / perPage);
         page = Math.clamp(page, 0, pages - 1);
         for (int i = page * perPage; i < Math.min(tasks.size(), (page + 1) * perPage); i++) {
-            int index = i, y = 94 + (i % perPage) * 27;
+            int index = i, y = 120 + (i % perPage) * 27;
             TaskDefinition task = tasks.get(i);
             String name = task.csvName == null || task.csvName.isBlank() ? task.command : task.csvName;
             button((i + 1) + ". " + name, left, y, panelWidth - 158, () -> {

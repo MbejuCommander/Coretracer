@@ -31,7 +31,7 @@ public final class CaptureEngine {
     public record Snapshot(String command, String server, long startedAt, long endedAt, int firstPage,
                            int totalPages, Outcome outcome, String detail, List<Page> pages,
                            List<MessageData> pending, List<MessageData> notices, String language) {
-        public Snapshot { pages = List.copyOf(pages); pending = List.copyOf(pending); notices = List.copyOf(notices); }
+        public Snapshot { pages = PageHistory.freeze(pages); pending = List.copyOf(pending); notices = List.copyOf(notices); }
         public Language reportLanguage() { return Language.fromCode(language); }
     }
     public interface Sink {
@@ -39,6 +39,11 @@ public final class CaptureEngine {
         void line(int expectedPage, MessageData message);
         void page(Page page);
         void finish(Snapshot snapshot);
+        default List<Page> history(int firstPage) { return new ArrayList<>(); }
+        default void restartExport() {}
+        default void recovering(int page) {}
+        default void restarted() {}
+        default boolean ready() { return true; }
     }
 
     private final LookupCommand command;
@@ -46,26 +51,65 @@ public final class CaptureEngine {
     private final Sink sink;
     private final String server;
     private final long started;
-    private final List<Page> pages = new ArrayList<>();
+    private final List<Page> pages;
     private final List<MessageData> pending = new ArrayList<>(), notices = new ArrayList<>();
     private Phase phase = Phase.WAITING;
     private Outcome outcome;
     private String detailKey = "status.waiting";
     private Object[] detailArgs = new Object[0];
     private String literalDetail;
-    private int expected, total, count;
+    private int expected, total;
     private long requestedAt, lastLine, nextAt, pausedAt;
     private boolean paused, hadEntry;
     private Snapshot result;
     private boolean recreating, recreationHeader;
     private long recreationReadyAt = -1;
-    private final SmartCsvOrder smartOrder = new SmartCsvOrder();
+    private SmartCsvOrder smartOrder = new SmartCsvOrder();
+    private boolean inspectRecoveryEnabled;
+    private long inspectDelay = 4000, interactionAt = Long.MIN_VALUE, lastRecoveryResponse, zeroAt = -1;
+    private int recoveryAttempts, stablePages;
+    private ResumeCountdown inspectionCountdown;
+
+    public void configureInspectionRecovery(boolean enabled, long delay) {
+        inspectRecoveryEnabled = enabled; inspectDelay = Math.max(0, delay);
+    }
+    public ResumeCountdown inspectionCountdown() { return inspectionCountdown; }
+    public void blockInteraction(long now) { if (active()) interactionAt = now; }
+    public static boolean related(MessageData m) {
+        return CoreProtectParser.header(m) || CoreProtectParser.prefixed(m) || CoreProtectParser.entry(m)
+                || CoreProtectParser.coordinates(m) || CoreProtectParser.pagination(m).isPresent();
+    }
+    private void interrupted(long now) {
+        pending.clear(); hadEntry = false;
+        if (!command.query() || !inspectRecoveryEnabled || ++recoveryAttempts > 3) {
+            endKey(Outcome.MISMATCH, "inspect.stopped", now); return;
+        }
+        expected = command.firstPage() + pages.size();
+        recreating = false; recreationHeader = false; recreationReadyAt = -1;
+        paused = false; phase = Phase.WAITING; stablePages = 0;
+        inspectionCountdown = new ResumeCountdown(now, inspectDelay);
+        lastRecoveryResponse = now; zeroAt = -1;
+        setDetail("inspect.waiting", expected);
+        sink.recovering(expected);
+    }
+    private void restartInspection(long now) {
+        inspectionCountdown = null; interactionAt = Long.MIN_VALUE;
+        if (settings.smartCsv()) {
+            pages.clear(); total = 0; expected = command.firstPage(); smartOrder = new SmartCsvOrder();
+            sink.restartExport();
+        }
+        requestedAt = lastLine = now; phase = Phase.WAITING;
+        recreating = expected > 1;
+        setDetail(recreating ? "recovery.recreating" : "status.reading", expected);
+        sink.restarted(); sink.send(command.command());
+    }
 
     public CaptureEngine(LookupCommand command, Settings settings, Sink sink, String server, long now) {
         this(command, settings, sink, server, now, now);
     }
     private CaptureEngine(LookupCommand command, Settings settings, Sink sink, String server, long now, long startedAt) {
         this.command = command; this.settings = settings; this.sink = sink; this.server = server;
+        pages = sink.history(command.firstPage());
         started = startedAt; requestedAt = lastLine = now; expected = command.firstPage();
     }
     public static CaptureEngine resume(LookupCommand command, Settings settings, Sink sink, String server,
@@ -73,13 +117,15 @@ public final class CaptureEngine {
         if (!command.query() || page < 1 || page > 9_999_999) throw new IllegalArgumentException("Invalid recovery query/page");
         CaptureEngine engine = new CaptureEngine(command, settings, sink, server, now, startedAt);
         if (settings.smartCsv()) return engine; // Refresh all server pages; never splice two different query results.
-        int previous = 0;
-        for (Page p : saved) {
-            if (p.number() != previous + 1 || p.number() >= page || !p.confirmed())
-                throw new IllegalArgumentException("Incomplete recovery pages");
-            engine.pages.add(p); engine.count += p.messages().size(); previous = p.number();
+        if (saved.size() != page - 1) throw new IllegalArgumentException("Missing recovery page");
+        if (engine.pages instanceof PageHistory history) history.restore(saved);
+        else {
+            int previous = 0;
+            for (Page p : saved) {
+                if (p.number() != ++previous || !p.confirmed()) throw new IllegalArgumentException("Incomplete recovery pages");
+                engine.pages.add(p);
+            }
         }
-        if (previous != page - 1) throw new IllegalArgumentException("Missing recovery page");
         engine.expected = page; engine.total = total; engine.recreating = page > 1;
         if (engine.recreating) engine.setDetail("recovery.recreating", page);
         return engine;
@@ -87,6 +133,13 @@ public final class CaptureEngine {
 
     public boolean accept(MessageData m, long now) {
         if (!active()) return false;
+        if (inspectionCountdown != null) {
+            if (related(m)) lastRecoveryResponse = now;
+            return related(m);
+        }
+        if (interactionAt != Long.MIN_VALUE && now - interactionAt <= settings.timeoutMs() && related(m)) {
+            interactionAt = Long.MIN_VALUE; interrupted(now); return true;
+        }
         if (recreating) return acceptRecreation(m, now);
         boolean header = CoreProtectParser.header(m);
         var footer = CoreProtectParser.pagination(m);
@@ -101,11 +154,11 @@ public final class CaptureEngine {
         }
         if (header) {
             if (phase == Phase.BETWEEN) {
-                endKey(Outcome.MISMATCH, "reason.early_response", now);
+                interrupted(now);
                 return false;
             }
             if (phase == Phase.READING) {
-                endKey(Outcome.MISMATCH, "reason.double_header", now);
+                interrupted(now);
                 return false;
             }
             phase = Phase.READING; hadEntry = false; setDetail("status.reading", expected);
@@ -116,8 +169,7 @@ public final class CaptureEngine {
             if (phase == Phase.BETWEEN && p.current() == expected) return true; // repeat footer; do not duplicate a page
             if (phase != Phase.READING) return false;
             if (p.current() != expected || (total > 0 && p.total() != total)) {
-                append(m, now);
-                endKey(Outcome.MISMATCH, "reason.changed_page", now);
+                interrupted(now);
                 return true;
             }
             if (!hadEntry) {
@@ -165,14 +217,23 @@ public final class CaptureEngine {
     }
 
     private void append(MessageData m, long now) {
-        pending.add(m); lastLine = now; sink.line(expected, m); count++;
-        if (pending.size() > 512 || count >= 100_000) endKey(Outcome.LIMIT, "reason.memory_limit", now);
+        pending.add(m); lastLine = now; sink.line(expected, m);
+        if (pending.size() > 512) endKey(Outcome.LIMIT, "reason.memory_limit", now);
     }
     private void commit(boolean confirmed) {
         Page page = new Page(expected, confirmed, pending); pages.add(page); pending.clear(); sink.page(page);
+        if (++stablePages >= 5) recoveryAttempts = 0;
     }
     public void tick(long now) {
         if (!active() || paused) return;
+        if (inspectionCountdown != null) {
+            if (inspectionCountdown.remaining(now) == 0) {
+                if (zeroAt < 0) zeroAt = now;
+                if (now - zeroAt >= settings.timeoutMs()) { inspectionCountdown = null; endKey(Outcome.MISMATCH, "inspect.no_quiet", now); }
+                else if (now - zeroAt >= 250 && now - lastRecoveryResponse >= settings.settleMs()) restartInspection(now);
+            }
+            return;
+        }
         if (recreating) {
             if (recreationReadyAt >= 0 && now >= recreationReadyAt) {
                 recreating = false; recreationReadyAt = -1; requestedAt = lastLine = now;
@@ -180,7 +241,7 @@ public final class CaptureEngine {
             } else if (now - requestedAt >= settings.timeoutMs()) endKey(Outcome.TIMEOUT, "recovery.query_failed", now);
             return;
         }
-        if (phase == Phase.BETWEEN && now >= nextAt) {
+        if (phase == Phase.BETWEEN && now >= nextAt && sink.ready()) {
             expected++; phase = Phase.WAITING; hadEntry = false; requestedAt = lastLine = now;
             setDetail("status.requesting", expected, total);
             sink.send(command.pageCommand(expected));
@@ -214,7 +275,7 @@ public final class CaptureEngine {
     }
     private void setDetail(String key, Object... args) { detailKey = key; detailArgs = args.clone(); literalDetail = null; }
     private void finish(Outcome outcome, long now) {
-        this.outcome = outcome; phase = Phase.FINISHED;
+        this.outcome = outcome; phase = Phase.FINISHED; inspectionCountdown = null;
         result = new Snapshot(command.command(), server, started, now, command.firstPage(), total, outcome,
                 detail(settings.language()), pages, pending, notices, settings.language().code());
         sink.finish(result);
@@ -224,6 +285,10 @@ public final class CaptureEngine {
     public int completedPages() { return pages.size(); }
     public int totalPages() { return total; }
     public int expectedPage() { return expected; }
+    public int nextRecoveryPage() {
+        int next = command.firstPage() + pages.size();
+        return total > 0 ? Math.min(next, total) : next;
+    }
     public String detail() { return detail(settings.language()); }
     public String detail(Language language) {
         String value = literalDetail != null ? literalDetail : Translations.text(language, detailKey, detailArgs);
@@ -233,7 +298,7 @@ public final class CaptureEngine {
     public Snapshot result() { return result; }
     public List<MessageData> visibleMessages() {
         List<MessageData> result = new ArrayList<>();
-        for (Page p : pages) result.addAll(p.messages());
+        for (int i = Math.max(0, pages.size() - PageHistory.PREVIEW_PAGES); i < pages.size(); i++) result.addAll(pages.get(i).messages());
         result.addAll(pending); return List.copyOf(result);
     }
 }

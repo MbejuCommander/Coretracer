@@ -77,7 +77,7 @@ class ParserReportTest {
     @Test void normalizesMalformedConfigurationAndKeepsValidHistoryOnly() {
         var c=new Config();c.delayMs=-1;c.timeoutMs=1;c.settleMs=99999;c.maxPages=99999;
         c.recentQueries=new java.util.ArrayList<>(List.of("co rollback u:jose t:3d","co l u:jose t:3d"));c.normalize();
-        assertEquals(750,c.delayMs);assertEquals(5000,c.timeoutMs);assertEquals(4000,c.settleMs);assertEquals(5000,c.maxPages);
+        assertEquals(750,c.delayMs);assertEquals(5000,c.timeoutMs);assertEquals(4000,c.settleMs);assertEquals(99999,c.maxPages);
         assertEquals(1,c.recentQueries.size());
     }
     @Test void malformedConfigIsBackedUp() throws Exception {

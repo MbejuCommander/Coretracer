@@ -1,8 +1,46 @@
-**CoreTrace 1.5.1 — Minecraft Java 26.3 · Fabric · Solo cliente**
+**CoreTrace 1.7.0 — Minecraft Java 26.3 · Fabric · Solo cliente**
 
-### CSV inteligente y limpieza de recuperación (1.5.1)
+### Modo Excel de la cola (1.7.0)
 
-**Ajustes → Exportación CSV → CSV inteligente** viene desactivado por defecto. También está disponible en los ajustes CSV de cada tarea y se conserva en copias y perfiles. Necesita la columna `server_timestamp`; al desmarcarla manualmente, el modo queda inactivo y aparece un triángulo rojo con una explicación. **Desmarcar todo** conserva `server_timestamp`. Si vuelves a marcar la columna, se recupera la preferencia de CSV inteligente que habías elegido.
+**Task Queue → Modo Excel (.xlsx)** está **desactivado por defecto**. Al activarlo antes de iniciar una cola, CoreTrace crea `coretrace/exports/queue-<fecha>-<id>/tasks.xlsx`, un libro con una hoja por tarea. El botón explica el comportamiento al pasar el cursor. **Abrir última exportación** lleva a la carpeta del libro. Las capturas individuales mantienen sus CSV, resumen, JSON y transcript.
+
+Cada hoja usa el nombre CSV de la tarea, o `Task N` si está vacío, y respeta sus columnas seleccionadas. Los nombres de hoja se adaptan a Excel (máximo 31 caracteres, caracteres permitidos y nombres únicos). Todas las partes CSV de una tarea se reúnen en su hoja, con un solo encabezado. Coordenadas, cantidad y página solicitada se escriben como números; fechas del servidor y demás textos conservan su representación. La primera fila queda fija y dispone de filtros. Si una tarea supera 1.048.575 registros, continúa en otra hoja con encabezados: el límite de Excel cuenta también la fila del encabezado. La división por páginas de CSV sigue aplicándose a los CSV, no determina las hojas Excel.
+
+El libro se actualiza al guardar cada tarea, también cuando se guarda una captura parcial. La escritura ocurre en segundo plano, leyendo los CSV por registros; no carga toda la cola en memoria. Cada actualización reconstruye el libro y puede tardar más cuanto mayor sea la cola. Hasta terminar la escritura se conserva el `tasks.xlsx` anterior; `tasks.xlsx.tmp` se publica mediante reemplazo atómico donde el sistema lo permite. No hace falta tener Excel instalado.
+
+**Recuperación:** el identificador del libro queda guardado junto al progreso de la cola, independientemente del valor actual del botón. Tras desconexión o cierre, se conservan las hojas anteriores y se reemplaza la hoja de la tarea reanudada, sin añadirla dos veces. CSV inteligente y recuperación de inspecciones siguen actuando sobre la captura antes de generar Excel. Los CSV y `queue-excel.json` son necesarios para reconstruir el libro mientras la cola pueda reanudarse; no los borres durante ese proceso.
+
+**Cancelar y guardar** guarda las tareas anteriores y el resultado parcial de la tarea actual en el libro antes de descartar la recuperación. No crea hojas para tareas que no se ejecutaron. Si falla el CSV o el Excel, la cola no avanza, no ejecuta comandos posteriores y conserva la recuperación y el último libro válido. Si Excel mantiene el archivo abierto y bloquea el reemplazo, ciérralo antes de reintentar. Una celda de más de 32.767 caracteres detiene la exportación Excel para evitar truncarla; los CSV y la recuperación quedan disponibles.
+
+La opción es global para la cola: los perfiles siguen guardando listas de tareas y no cambian este selector. Desactivada, se mantiene la exportación habitual. El mod continúa requiriendo Minecraft 26.3 y Java 25.
+
+### Cancelar y guardar: limpieza de recuperación (1.6.1)
+
+**Cancelar y guardar** detiene la captura y guarda un resultado parcial: CSV, resumen, JSON de sesión y transcript. Los archivos `.recovery-page-N.json` y la referencia `coretrace/recovery.json` se eliminan **después** de que termine la exportación parcial. Si falla el guardado, permanecen para poder recuperar las páginas ya confirmadas. Si se pulsa cancelar mientras se está guardando, se espera a que finalice la operación antes de descartar la recuperación. Esto también se aplica a la tarea activa de la cola; sus comandos posteriores no se ejecutan.
+
+### Exportación progresiva y capturas grandes (1.6.0)
+
+Los CSV se escriben página a página. Con un split de 500, la primera parte aparece al cerrar la página 500, la segunda al cerrar la 1000 y así sucesivamente. Cada parte repite el encabezado y las opciones de Excel. La parte abierta usa `.csv.tmp`; al cerrarla se publica como `.csv` mediante reemplazo atómico cuando el sistema lo permite. Al terminar, también se publica la última parte incompleta. Si sólo existe una parte, el resultado final utiliza el nombre sin sufijo. Sin split, el archivo temporal crece durante la captura y se publica al terminar.
+
+Se retiró el límite global de **100.000 mensajes**. El máximo configurable pasa a **9.999.999 páginas**, conservando 500 por defecto. Al escribir más de 5000 aparece un triángulo rojo que recomienda partes de **500 páginas o menos**; es una recomendación, no una restricción. Sigue vigente la protección contra una respuesta anómala de más de 512 mensajes en una página.
+
+La captura conserva en memoria sólo las últimas **16 páginas** para la vista de resultados; la búsqueda y copia de esa pantalla se limitan a esa vista reciente. Los archivos CSV y JSON conservan toda la captura. La escritura aplica espera entre solicitudes si el disco se retrasa. El JSON final y el resumen se generan leyendo las páginas desde disco; el resumen conserva conteos totales exactos, pero agrupa categorías adicionales después de 4096 categorías distintas por grupo para limitar su memoria.
+
+La recuperación sigue guardándose **por página**, incluso antes de cerrar una parte CSV. No elimines los archivos de recuperación durante una captura: los CSV pueden omitir columnas y no son por sí solos un punto de recuperación. Al recuperar normalmente se validan las páginas guardadas y se reconstruyen las partes desde disco, sin cargar toda la sesión en memoria ni repetir filas de la página interrumpida. Esta preparación puede tardar con capturas grandes. La limpieza automática se realiza sólo tras completar los archivos y abandonar el estado de recuperación. Durante una actualización inteligente pueden quedar partes antiguas hasta que termine correctamente; el resumen final identifica el resultado definitivo.
+
+### Recuperación por inspección accidental (1.6.0)
+
+**Ajustes → Recuperación → Recuperar inspección** está activado por defecto. Se consideran sospechosas las cabeceras inesperadas, los cambios de paginación y las respuestas de CoreProtect después de interactuar con un bloque durante la captura. Como el chat no identifica de forma única cada consulta, la detección es conservadora: una interacción normal seguida de una respuesta también puede provocar una recuperación. No se comparan sólo timestamps ni cinco entradas como si fueran identificadores únicos.
+
+El mod descarta la página en curso, conserva las completas y avisa en rojo. Usa la espera de reanudación de **4000 ms**, editable; vacío vuelve a 4000 y un valor inferior muestra una advertencia. También espera el período configurado de cierre sin datos desde la última respuesta de CoreProtect. Al llegar a cero muestra el 0 durante al menos 250 ms antes de reconstruir la consulta. Si siguen llegando respuestas durante toda la espera máxima por solicitud después del cero, se detiene con un resultado parcial.
+
+Suena `entity.villager.no` al detectar la interrupción, `entity.experience_orb.pickup` en la cuenta regresiva cerca de la mira y `entity.villager.yes` al iniciar la reconstrucción. La reanudación tras desconexión también usa los sonidos de experiencia y aldeano al finalizar la cuenta. La secuencia predeterminada muestra 4, 3, 2, 1, 0; una demora extrema del cliente puede saltarse pasos visuales.
+
+Con CSV inteligente apagado, repite el comando original, ignora la página 1 de reconstrucción y pide la primera página pendiente: si la 185 estaba a medias, vuelve a la 185; si ya estaba guardada, pide la 186. Si cambia el total durante la reconstrucción, se detiene antes de mezclar consultas. Con CSV inteligente encendido, actualiza desde la página 1. Hay un máximo de **3 intentos consecutivos**, que se restablece tras 5 páginas estables. La cola permanece en su tarea actual durante la recuperación y no ejecuta sus comandos posteriores hasta que la exportación termine correctamente. Cancelar o desconectarse detiene el conteo. En los ajustes propios de una tarea se pueden cambiar Recuperar inspección y su espera.
+
+### CSV inteligente y limpieza de recuperación (1.6.0)
+
+**Ajustes → Exportación CSV → CSV inteligente** viene activado en configuraciones nuevas. Las preferencias ya guardadas se respetan. También está disponible en los ajustes CSV de cada tarea y se conserva en copias y perfiles. Mientras está activado, `server_timestamp` es obligatorio y no puede desmarcarse; para quitarlo, primero desactiva CSV inteligente. **Desmarcar todo** conserva esa columna. Activar el modo vuelve a incluirla automáticamente. Desactivarlo permite reanudar por número de página, con riesgo de omitir o duplicar registros si los resultados cambiaron.
 
 Al reanudar una captura con este modo, CoreTrace vuelve a leer **todas las páginas desde la 1** en la misma carpeta y reemplaza el conjunto anterior por la respuesta actual. Por ejemplo, cuatro carteles nuevos quedan en la primera página y los anteriores aparecen en las páginas que ahora les asigna el servidor. Los eventos que ya no pertenecen al rango `t:7d` dejan de incluirse. Esto tarda lo que una consulta completa; no salta directamente a la antigua página 185. Las tareas ya terminadas de una cola no se repiten.
 
@@ -10,7 +48,7 @@ El mod captura automáticamente la información emergente necesaria para `server
 
 La opción se fija al iniciar la captura o cola, igual que los demás ajustes CSV. Cambiarla no altera una ejecución pendiente que ya guardó sus ajustes. Desactivada, se conserva la reanudación normal desde la página interrumpida.
 
-Después de guardar correctamente todos los archivos definitivos y actualizar el estado de recuperación, se borran los `.recovery-page-N.json` y sus temporales de esa carpeta. Se mantienen si aún son necesarios para una recuperación pendiente, o si hubo una interrupción o error de exportación. Si una actualización produce menos partes CSV, también se eliminan las partes antiguas del mismo nombre que ya no pertenecen al resultado. El transcript, resumen y JSON de sesión se conservan.
+Después de guardar correctamente todos los archivos definitivos y actualizar el estado de recuperación, se borran los `.recovery-page-N.json` y sus temporales de esa carpeta. Se mantienen si aún son necesarios para una recuperación pendiente o si falló la exportación; una cancelación guardada correctamente también los elimina. Si una actualización produce menos partes CSV, también se eliminan las partes antiguas del mismo nombre que ya no pertenecen al resultado. El transcript, resumen y JSON de sesión se conservan.
 
 ### Recuperación y autoreconexión (1.5.0)
 
@@ -18,7 +56,7 @@ En **Ajustes → Recuperación**, la reanudación automática viene **activada**
 
 El progreso se guarda por páginas en `coretrace/exports/<carpeta>/.recovery-page-N.json`; `coretrace/recovery.json` identifica la ejecución pendiente. Conserva ambos para recuperar después de cerrar el cliente. Con CSV inteligente desactivado, si se interrumpe en la página 185, el mod repite la consulta original, descarta su respuesta inicial de la página 1, espera su pie confirmado y solicita `/co l 185`. Conserva las páginas anteriores y vuelve a leer la interrumpida, sin agregar duplicados por esa repetición al CSV. Reutiliza la carpeta y los ajustes de exportación originales. El registro de texto conserva las líneas anteriores, incluidas las parciales, y añade un marcador de reanudación.
 
-También recupera la cola: tarea actual, consultas pendientes, posición de los comandos personalizados y espera pendiente entre comandos o tareas. Las opciones de la ejecución permanecen congeladas. Los comandos se reservan en disco antes de enviarlos para no repetir un envío incierto: un cierre abrupto justo entre esa reserva y el envío puede omitir ese comando. No hay confirmación de ejecución del servidor. **Cancelar** o **Descartar reanudación guardada** elimina la referencia de recuperación, sin borrar los archivos exportados.
+También recupera la cola: tarea actual, consultas pendientes, posición de los comandos personalizados y espera pendiente entre comandos o tareas. Las opciones de la ejecución permanecen congeladas. Los comandos se reservan en disco antes de enviarlos para no repetir un envío incierto: un cierre abrupto justo entre esa reserva y el envío puede omitir ese comando. No hay confirmación de ejecución del servidor. **Cancelar y guardar** elimina la referencia y los archivos de recuperación después de exportar correctamente, sin borrar los resultados parciales. **Descartar reanudación guardada** elimina la referencia de recuperación sin borrar los archivos exportados.
 
 En **Ajustes → Recuperación → Autoreconexión**, la reconexión está **desactivada por defecto**. La espera inicial entre intentos es **5000 ms** y el máximo es **3 intentos**; campos vacíos usan esos valores. Se admiten esperas enteras no negativas de 64 bits y de 1 a 2147483647 intentos. El aviso verde al iniciar cada tarea viene activado y se puede apagar aquí. Los reintentos se realizan desde la pantalla de desconexión; volver al menú de servidores o cancelar la conexión los detiene. Los ajustes del mod pausan los reintentos. No se reconecta al salir voluntariamente al menú ni abre una conexión por sí solo después de reiniciar el juego. Tras volver a entrar, se aplica la espera independiente de reanudación. Realms no utiliza esta reconexión automática.
 
@@ -26,7 +64,7 @@ La recuperación requiere una consulta original con filtros, no una orden numér
 
 ### Seleccionar o desmarcar todas las columnas CSV (1.4.2)
 
-En **Ajustes → Exportación CSV → Columnas del CSV**, un botón junto al texto superior alterna entre **Marcar todo** y **Desmarcar todo**. Actúa sobre las columnas de todas las páginas y también funciona en los ajustes CSV propios de una tarea. Al desmarcar todo conserva `server_timestamp`; puedes quitarla manualmente. Siempre debe quedar al menos una columna antes de volver al menú. Una selección vacía no se guarda.
+En **Ajustes → Exportación CSV → Columnas del CSV**, un botón junto al texto superior alterna entre **Marcar todo** y **Desmarcar todo**. Actúa sobre las columnas de todas las páginas y también funciona en los ajustes CSV propios de una tarea. Al desmarcar todo conserva `server_timestamp`; puedes quitarla manualmente después de desactivar CSV inteligente. Siempre debe quedar al menos una columna antes de volver al menú. Una selección vacía no se guarda.
 
 ### Columnas automáticas en Excel (1.4.1)
 
@@ -78,7 +116,7 @@ Para instalarlo:
 
 1. Abre una instancia de **Minecraft Java 26.3** con **Fabric Loader 0.19.5 o posterior**. El juego utiliza Java 25; el launcher oficial suele gestionar su runtime. En otros launchers, selecciona Java 25.
 2. Instala [Fabric API para 26.3](https://modrinth.com/mod/fabric-api/versions?g=26.3), versión **0.161.0+26.3** o posterior compatible.
-3. Copia `coretrace-1.5.1+26.3.jar` dentro de la carpeta `mods` de esa instancia. Si tenías la versión anterior, retira su JAR para dejar una sola versión de CoreTrace. Tu configuración e historial se conservan.
+3. Copia `coretrace-1.7.0+26.3.jar` dentro de la carpeta `mods` de esa instancia. Si tenías la versión anterior, retira su JAR para dejar una sola versión de CoreTrace. Tu configuración e historial se conservan.
 4. Si quieres abrirlo desde la lista de mods, instala [Mod Menu compatible con 26.3](https://modrinth.com/mod/modmenu). Es opcional: F8 y `/coretrace` funcionan sin Mod Menu.
 5. Entra a un servidor que ya tenga CoreProtect funcionando y donde tu usuario pueda ejecutar las consultas.
 
@@ -104,7 +142,7 @@ En **Ajustes → Exportación CSV → Nombre del archivo CSV** puedes escribir, 
 
 En **Ajustes → Sonidos**, cada selector muestra todos los eventos de sonido de Minecraft cargados, incluida música y discos. Busca por identificador (por ejemplo `allay`, `music` o `note block`) o por el subtítulo en el idioma del juego. Usa **Probar** para escuchar y **Detener vista previa** para detenerlo; al salir también se detiene. Los paquetes de recursos pueden sustituir estos audios. La reproducción respeta el volumen del juego.
 
-**Última exportación** abre la carpeta de la última sesión que contiene el CSV (o sus partes). **Carpeta de archivos** abre la carpeta general de exportaciones. En Windows se usa la apertura nativa de carpetas, sin depender de Java AWT.
+**Última exportación** abre la carpeta de la última sesión que contiene el CSV (o sus partes), o la del libro `.xlsx` si se usó Modo Excel. **Carpeta de archivos** abre la carpeta general de exportaciones. En Windows se usa la apertura nativa de carpetas, sin depender de Java AWT.
 
 El menú incluye:
 
@@ -180,11 +218,11 @@ Los ajustes se guardan en `config/coretrace.json`. Sus valores iniciales son:
 | Pausa entre páginas | 1500 ms | 750–30000 ms |
 | Espera máxima por solicitud | 30000 ms | 5000–180000 ms |
 | Cierre sin pie | 3500 ms | 1500 ms hasta espera máxima menos 1000 ms |
-| Máximo de páginas por captura | 500 | 1–5000 |
+| Máximo de páginas por captura | 500 | 1–9999999 |
 | Guardar textos emergentes | Activado | Activado / desactivado |
 | Ocultar mensajes capturados del chat | Desactivado | Activado / desactivado |
 
-Los tiempos y el máximo de páginas se fijan al comenzar cada captura. El cambio de estos ajustes se aplica a la siguiente. Si el servidor limita la frecuencia de comandos, aumenta la pausa, por ejemplo a 2000 o 3000 ms. El exportador también tiene límites de memoria: 512 mensajes por página pendiente y 100000 mensajes de resultados por sesión; si se alcanzan, guarda una captura parcial.
+Los tiempos y el máximo de páginas se fijan al comenzar cada captura. El cambio de estos ajustes se aplica a la siguiente. Si el servidor limita la frecuencia de comandos, aumenta la pausa, por ejemplo a 2000 o 3000 ms. El exportador conserva una protección por página de 512 mensajes; al superarla guarda una captura parcial. Ya no tiene el límite global de 100000 mensajes.
 
 Los comandos locales disponibles son:
 
@@ -205,7 +243,7 @@ Durante una captura se bloquea el envío manual de otras órdenes `/co` para evi
 
 El cliente solo ve los mensajes que recibe y necesita los permisos normales de CoreProtect. No obtiene acceso a la base de datos ni amplía permisos. La captura automática solo envía consultas; la cola también puede enviar el comando personalizado que configure el usuario. El único tráfico añadido durante una captura son comandos de consulta y paginación. Los archivos se guardan localmente, sin enviarlos a servicios externos.
 
-La interpretación se basa en el formato público de **CoreProtect CE v24.0**: cabeceras, enlaces de página, resultados y coordenadas. Los mensajes modificados por otros plugins, traducciones personalizadas y otras versiones no tienen compatibilidad garantizada. El pie de página no es una instantánea de base de datos: si cambian los datos o la caché durante la consulta, el cliente no puede garantizar identidad transaccional de todos los eventos. Cuando detecta un cambio de total o una página inesperada, detiene y marca la captura como parcial. En una página pendiente del CSV, `page_requested` es la página que se pidió; `page_confirmed=false` indica que no se verificó su correspondencia.
+La interpretación se basa en el formato público de **CoreProtect CE v24.0**: cabeceras, enlaces de página, resultados y coordenadas. Los mensajes modificados por otros plugins, traducciones personalizadas y otras versiones no tienen compatibilidad garantizada. El pie de página no es una instantánea de base de datos: si cambian los datos o la caché durante la consulta, el cliente no puede garantizar identidad transaccional de todos los eventos. Cuando detecta un cambio de total o una página inesperada, intenta recuperar la inspección; si está desactivado o no puede recuperarse, detiene y marca la captura como parcial. En una página pendiente del CSV, `page_requested` es la página que se pidió; `page_confirmed=false` indica que no se verificó su correspondencia.
 
 **Compatibilidad del servidor:** CoreTrace está hecho para el **cliente 26.3** y requiere que CoreProtect ya funcione en el servidor al que te conectas. Este mod no hace compatible una instalación del plugin que no lo sea. Comprueba la [publicación oficial de CoreProtect](https://www.spigotmc.org/resources/coreprotect-community-edition.8631/) y sus [permisos](https://docs.coreprotect.net/permissions/).
 
@@ -228,7 +266,7 @@ python build-portable.py
 
 Configura `JAVA_HOME` apuntando al JDK 25 o posterior si no está en el PATH. El script descarga las clases oficiales de Minecraft 26.3, Fabric y Mod Menu, verifica sus hashes publicados, compila las fuentes y ejecuta las pruebas. Guarda las dependencias en `.portable/`, que no se distribuye. Minecraft 26.3 utiliza clases sin ofuscación, por lo que este camino genera el JAR sin una etapa de remapeo. El script requiere acceso de red a los repositorios oficiales. `build-portable.bat` permite ejecutarlo en Windows.
 
-La versión 1.5.1 se compiló con Gradle (`gradlew.bat test build --offline`) y pasó **140 pruebas automatizadas**, sin fallos ni errores. Las 60 clases del JAR se verificaron como bytecode de Java 25 (versión 69). **La interfaz y una sesión real de Minecraft/CoreProtect todavía no se han probado de principio a fin.**
+La versión 1.7.0 se compiló con JDK 25.0.4 y Gradle (`gradlew.bat test build --offline`) y pasó **163 pruebas automatizadas**, sin fallos ni errores. Las 67 clases del JAR se verificaron como bytecode de Java 25 (versión 69). Se abrió un libro generado con Microsoft Excel 16.0 y se comprobaron las hojas, coordenadas numéricas, filas, comillas, saltos de línea y conservación de textos que podrían parecer fórmulas. Las pruebas de Excel también cubren reanudación sin duplicar hojas, cancelar con resultado parcial, errores de escritura, conservación de backups, columnas diferentes y división de hojas. **La interfaz y una sesión real de Minecraft/CoreProtect todavía no se han probado de principio a fin.** Se mantiene la prueba de captura simulada de 5001 páginas, 105021 registros y 115023 mensajes, exportación antes del final, recuperación tras cierre y recuperación de inspecciones con la cola retenida.
 
 Para la primera comprobación en tu servidor: realiza una consulta pequeña de un usuario y un periodo conocidos, verifica que se muestra su última página y compara el transcript con los resultados del chat. Si el formato no se reconoce, conserva el transcript parcial y una captura del chat para ajustar el lector a ese formato.
 
