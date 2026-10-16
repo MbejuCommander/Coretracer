@@ -35,6 +35,7 @@ public final class Config {
     public List<TaskDefinition> tasks = new ArrayList<>();
     public int taskDelayMs = 3000;
     public boolean queueExcel = false;
+    public String queueExcelName = "";
     public List<TaskProfile> taskProfiles = new ArrayList<>();
     public String queueStartSound = "";
     public String queueFinishSound = "";
@@ -73,6 +74,8 @@ public final class Config {
         taskProfiles.removeIf(java.util.Objects::isNull);
         taskProfiles.forEach(TaskProfile::normalize);
         taskDelayMs = Math.clamp(taskDelayMs, 0, 3600000);
+        try { queueExcelName = QueueExcel.normalizeName(queueExcelName); }
+        catch (IllegalArgumentException e) { queueExcelName = ""; }
         queueStartSound = normalizeSound(queueStartSound);
         queueFinishSound = normalizeSound(queueFinishSound);
         delayMs = Math.clamp(delayMs, 750, 30000);

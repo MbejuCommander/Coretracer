@@ -50,8 +50,8 @@ public final class TaskQueue {
         if (!outcome.successful()) { cancel(); return; }
         TaskDefinition task = tasks.get(index);
         commandIndex = 0;
-        if (task.commands.isEmpty()) afterTask(now);
-        else { phase = Phase.CUSTOM; due = now + task.commands.getFirst().delayMs; }
+        if (task.commands.isEmpty()) { afterTask(now); return; }
+        phase = Phase.CUSTOM; due = now + task.commands.getFirst().delayMs;
         checkpoint(now);
     }
     public void tick(long now) {
@@ -70,8 +70,13 @@ public final class TaskQueue {
         } else { index++; begin(); }
     }
     private void afterTask(long now) {
-        if (index + 1 == tasks.size()) { cancel(); host.finished(); }
-        else { phase = Phase.NEXT; due = now + delay; }
+        if (index + 1 == tasks.size()) {
+            phase = Phase.STOPPED;
+            if (checkpoint(now)) host.finished();
+        } else {
+            phase = Phase.NEXT; due = now + delay;
+            checkpoint(now);
+        }
     }
     public void cancel() { phase = Phase.STOPPED; }
 }

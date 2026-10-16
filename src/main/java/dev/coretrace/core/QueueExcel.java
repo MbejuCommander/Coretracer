@@ -15,15 +15,34 @@ public final class QueueExcel {
     private static final String REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
     private static final Set<String> NUMBERS = Set.of("page_requested", "amount", "x", "y", "z");
     private final Path exports, directory;
+    private final String fileName;
     private final int rowLimit;
     private record Task(int index, String name, List<String> csvFiles) {}
     private record Manifest(List<Task> tasks) {}
-    public QueueExcel(Path exports, String directory) throws IOException { this(exports, directory, 1_048_576); }
+    public QueueExcel(Path exports, String directory) throws IOException { this(exports, directory, ""); }
+    public QueueExcel(Path exports, String directory, String name) throws IOException {
+        this(exports, directory, name, 1_048_576);
+    }
     QueueExcel(Path exports, String directory, int rowLimit) throws IOException {
+        this(exports, directory, "", rowLimit);
+    }
+    QueueExcel(Path exports, String directory, String name, int rowLimit) throws IOException {
         this.exports = exports.toAbsolutePath().normalize();
         this.directory = safeDirectory(this.exports, directory);
+        String stem = normalizeName(name);
+        this.fileName = (stem.isEmpty() ? "tasks" : stem) + ".xlsx";
         if (rowLimit < 2 || rowLimit > 1_048_576) throw new IllegalArgumentException("Invalid sheet row limit");
         this.rowLimit = rowLimit;
+    }
+    /** The typed name is a file stem, never a path. An optional .xlsx suffix is accepted. */
+    public static String normalizeName(String value) {
+        if (value == null || value.isBlank()) return "";
+        String stem = value.strip();
+        if (stem.toLowerCase(Locale.ROOT).endsWith(".xlsx")) {
+            stem = stem.substring(0, stem.length() - 5);
+            if (stem.isBlank()) throw new IllegalArgumentException("Invalid Excel filename");
+        }
+        return CsvFileNames.normalize(stem);
     }
     public static Path safeDirectory(Path root, String name) throws IOException {
         Path base = root.toAbsolutePath().normalize();
@@ -34,7 +53,8 @@ public final class QueueExcel {
         return path;
     }
     public String directoryName() { return directory.getFileName().toString(); }
-    public Path file() { return directory.resolve("tasks.xlsx"); }
+    public String fileName() { return fileName; }
+    public Path file() { return directory.resolve(fileName); }
     /** Replace the current task, including partial output, so resumption cannot duplicate sheets. */
     public void saveTask(int index, String name, List<Path> csvFiles) throws IOException {
         if (index < 0 || csvFiles.isEmpty()) throw new IOException("Empty workbook task");
@@ -57,7 +77,7 @@ public final class QueueExcel {
         tasks.sort(Comparator.comparingInt(Task::index));
         // The manifest is durable before workbook publication; a failed write retains its inputs.
         SessionFiles.writeAtomic(manifest, JSON.toJson(new Manifest(tasks)));
-        Path temp = directory.resolve("tasks.xlsx.tmp");
+        Path temp = directory.resolve(fileName + ".tmp");
         try {
             write(temp, tasks);
             SessionFiles.moveAtomic(temp, file());
@@ -66,6 +86,52 @@ public final class QueueExcel {
             try { Files.deleteIfExists(temp); } catch (IOException cleanup) { e.addSuppressed(cleanup); }
             throw e;
         }
+    }
+    /** Remove completed queue inputs only after the final workbook and queue checkpoint exist.
+     * Reject directories containing files that CoreTrace did not generate. */
+    public void cleanupSources() throws IOException {
+        if (!Files.isRegularFile(file(), LinkOption.NOFOLLOW_LINKS))
+            throw new IOException("Workbook is not complete");
+        Path manifest = directory.resolve("queue-excel.json");
+        if (!Files.isRegularFile(manifest, LinkOption.NOFOLLOW_LINKS))
+            throw new IOException("Missing Excel manifest");
+        Manifest saved;
+        try { saved = JSON.fromJson(Files.readString(manifest), Manifest.class); }
+        catch (RuntimeException e) { throw new IOException("Invalid Excel manifest", e); }
+        if (saved == null || saved.tasks() == null || saved.tasks().isEmpty())
+            throw new IOException("Empty Excel manifest");
+        Set<Path> sources = new LinkedHashSet<>();
+        Set<Path> csvInputs = new HashSet<>();
+        for (Task task : saved.tasks()) {
+            if (task == null || task.csvFiles() == null || task.csvFiles().isEmpty())
+                throw new IOException("Invalid Excel task manifest");
+            for (String input : task.csvFiles()) {
+                Path csv = checkedCsv(input);
+                csvInputs.add(csv);
+                Path source = csv.getParent();
+                if (source.equals(directory) || !source.toRealPath().getParent().equals(exports.toRealPath()))
+                    throw new IOException("Unsafe Excel source directory");
+                sources.add(source);
+            }
+        }
+        for (Path source : sources) try (var files = Files.newDirectoryStream(source)) {
+            for (Path item : files) {
+                String name = item.getFileName().toString();
+                if (!Files.isRegularFile(item, LinkOption.NOFOLLOW_LINKS)
+                        || !(csvInputs.contains(item) || name.equals("transcript.log")
+                        || name.equals("session.json") || name.equals("sesion.json")
+                        || name.equals("summary.txt") || name.equals("resumen.txt")
+                        || name.matches("\\.recovery-page-[0-9]+\\.json(?:\\.tmp)?")))
+                    throw new IOException("Unexpected file in Excel source directory: " + item);
+            }
+        }
+        for (Path source : sources) {
+            try (var files = Files.newDirectoryStream(source)) {
+                for (Path item : files) Files.delete(item);
+            }
+            Files.delete(source);
+        }
+        Files.delete(manifest);
     }
     private Path checkedCsv(String relative) throws IOException {
         Path path = exports.resolve(relative).normalize();

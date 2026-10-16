@@ -291,5 +291,8 @@
   "coretrace.report.grouped": "Summary limited to 4096 categories per group; additional categories are combined. CSV and JSON retain every record.",
   "modmenu.descriptionTranslation.coretrace": "Client-side CoreProtect lookup pagination, transcripts, summaries and CSV exports.",
   "coretrace.queue.excel": "Excel mode (.xlsx): %s",
-  "coretrace.queue.excel.tooltip": "Off by default. Saves the queue in one tasks.xlsx workbook, with one sheet per task and its columns. Updated whenever a task is saved; keeps CSVs and recovery. Cancel and save includes partial results. Large sheets are split automatically."
+  "coretrace.queue.excel.tooltip": "Off by default. When enabled you can name the workbook (blank: tasks.xlsx). Each queue uses its own folder and one sheet per task. CSVs and recovery remain during the queue; successful completion leaves only the .xlsx. Cancellation or failure keeps the files for recovery.",
+  "coretrace.queue.excel_name": "Excel workbook name",
+  "coretrace.queue.invalid_excel_name": "Invalid Excel filename",
+  "coretrace.queue.excel_cleanup_failed": "Could not clean the task files; the Excel workbook was kept."
 }

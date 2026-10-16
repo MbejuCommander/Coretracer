@@ -34,6 +34,31 @@ class TaskQueueRecoveryTest {
         var queue = new TaskQueue(tasks, 3000, host); queue.restore(state, 10000);
         assertEquals(List.of("two"), host.events); assertEquals(2, queue.position());
     }
+    @Test void finalTaskWithoutCustomCommandsPersistsStoppedStateBeforeCleanup() {
+        var task = task("single"); task.commands.clear();
+        var host = new Host() {
+            @Override public void finished() {
+                assertEquals(TaskQueue.Phase.STOPPED, saved.phase());
+                super.finished();
+            }
+        };
+        var queue = new TaskQueue(List.of(task), 3000, host);
+        queue.start(); queue.exported(CaptureEngine.Outcome.COMPLETE, 0);
+        assertFalse(queue.active());
+        assertEquals(List.of("single", "done"), host.events);
+    }
+    @Test void finalTaskDoesNotCleanWhenStoppedCheckpointFails() {
+        var task = task("single"); task.commands.clear();
+        var host = new Host() {
+            @Override public boolean checkpoint(TaskQueue.State state) {
+                if (state.phase() == TaskQueue.Phase.STOPPED) return false;
+                return super.checkpoint(state);
+            }
+        };
+        var queue = new TaskQueue(List.of(task), 3000, host);
+        queue.start(); queue.exported(CaptureEngine.Outcome.COMPLETE, 0);
+        assertFalse(queue.active()); assertEquals(List.of("single"), host.events);
+    }
     @Test void waitsRemainingTaskDelayAfterReconnect() {
         var tasks = List.of(task("one"), task("two")); var host = new Host();
         var queue = new TaskQueue(tasks, 3000, host);

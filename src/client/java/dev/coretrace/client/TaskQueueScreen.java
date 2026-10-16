@@ -6,17 +6,27 @@ import net.minecraft.client.gui.screens.Screen;
 final class TaskQueueScreen extends BaseScreen {
     private int page;
     private EditBox delay;
+    private EditBox excelName;
     private DelayWarningButton delayWarning;
     private String error = "";
     private boolean wasBusy;
     TaskQueueScreen(Screen parent) { super(parent, "queue.title"); }
     private boolean saveDelay() {
-        try { mod.config().taskDelayMs = TaskDefinition.taskDelay(delay.getValue()); mod.saveConfig(); error = ""; return true; }
+        int parsedDelay;
+        try { parsedDelay = TaskDefinition.taskDelay(delay.getValue()); }
         catch (IllegalArgumentException e) { error = tr("queue.invalid_delay"); return false; }
+        String parsedName;
+        try { parsedName = excelName == null ? mod.config().queueExcelName
+                : dev.coretrace.core.QueueExcel.normalizeName(excelName.getValue()); }
+        catch (IllegalArgumentException e) { error = tr("queue.invalid_excel_name"); return false; }
+        mod.config().taskDelayMs = parsedDelay;
+        mod.config().queueExcelName = parsedName;
+        mod.saveConfig(); error = ""; return true;
     }
     @Override protected void init() {
         String draft = delay == null ? "" + mod.config().taskDelayMs : delay.getValue();
-        super.init(); int third = (panelWidth - 12) / 3;
+        String nameDraft = excelName == null ? mod.config().queueExcelName : excelName.getValue();
+        super.init(); excelName = null; int third = (panelWidth - 12) / 3;
         button(tr("queue.add"), left, 40, third, () -> {
             if (!saveDelay()) return;
             TaskDefinition task = new TaskDefinition(); mod.config().tasks.add(task); mod.saveConfig();
@@ -38,17 +48,25 @@ final class TaskQueueScreen extends BaseScreen {
             mod.config().tasks.clear(); mod.saveConfig(); page = 0; rebuildWidgets();
         }).active = !mod.busy() && !mod.config().tasks.isEmpty();
         var excel = button(tr("queue.excel", yes(mod.config().queueExcel)), left, 92, panelWidth, () -> {
+            if (!saveDelay()) return;
             mod.config().queueExcel = !mod.config().queueExcel; mod.saveConfig(); rebuildWidgets();
         });
         excel.active = !mod.busy();
         excel.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
                 net.minecraft.network.chat.Component.literal(tr("queue.excel.tooltip"))));
-        int perPage = Math.max(1, (height - 194) / 27);
+        if (mod.config().queueExcel) {
+            excelName = field(tr("queue.excel_name"), nameDraft, left + third + 6, 120,
+                    panelWidth - third - 6, 105);
+            excelName.setHint(net.minecraft.network.chat.Component.literal("tasks.xlsx"));
+            excelName.active = !mod.busy();
+        }
+        int taskTop = mod.config().queueExcel ? 146 : 120;
+        int perPage = Math.max(1, (height - (taskTop + 74)) / 27);
         var tasks = mod.config().tasks;
         int pages = Math.max(1, (tasks.size() + perPage - 1) / perPage);
         page = Math.clamp(page, 0, pages - 1);
         for (int i = page * perPage; i < Math.min(tasks.size(), (page + 1) * perPage); i++) {
-            int index = i, y = 120 + (i % perPage) * 27;
+            int index = i, y = taskTop + (i % perPage) * 27;
             TaskDefinition task = tasks.get(i);
             String name = task.csvName == null || task.csvName.isBlank() ? task.command : task.csvName;
             button((i + 1) + ". " + name, left, y, panelWidth - 158, () -> {
@@ -81,6 +99,8 @@ final class TaskQueueScreen extends BaseScreen {
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         super.extractRenderState(g, mx, my, delta);
         label(g, tr("queue.delay"), left + (panelWidth - 12) / 3 * 2 + 12, 66, panelWidth / 3, 0xFFB8C9D9);
+        if (mod.config().queueExcel)
+            label(g, tr("queue.excel_name"), left, 125, (panelWidth - 12) / 3, 0xFFB8C9D9);
         label(g, error.isEmpty() ? mod.status() : error, left + 70, height - 43, panelWidth - 70, 0xFF93E8D9);
     }
 }

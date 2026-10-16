@@ -218,7 +218,8 @@ public final class CoreTraceClient implements ClientModInitializer {
             var capture = resumed != null ? resumed : new RecoveryStore.Capture(path.getFileName().toString(),
                     command.command(), started, 1, 0, runConfig.captureCopy());
             recovery = new RecoveryStore.State(server, capture, owner == null ? null : owner.snapshot(now()),
-                    recovery == null ? "" : recovery.finishSound(), workbook == null ? null : workbook.directoryName());
+                    recovery == null ? "" : recovery.finishSound(), workbook == null ? null : workbook.directoryName(),
+                    workbook == null ? null : workbook.fileName());
         } else recovery = null;
         RecoveryStore.State initialRecovery = recovery;
         queue(ctx, () -> {
@@ -289,8 +290,10 @@ public final class CoreTraceClient implements ClientModInitializer {
                         if (savedCancellation || (snapshot.outcome().successful() && (owner == null || ctx.stopQueueAfterSave)))
                             discardRecovery();
                         if (snapshot.outcome().successful() || savedCancellation) io.execute(() -> {
-                            try { recoveryStore.cleanupCompleted(ctx.files.directory()); }
-                            catch (IOException e) { LOGGER.warn("Cannot clean completed recovery pages", e); }
+                            try {
+                                if (Files.isDirectory(ctx.files.directory()))
+                                    recoveryStore.cleanupCompleted(ctx.files.directory());
+                            } catch (IOException e) { LOGGER.warn("Cannot clean completed recovery pages", e); }
                         });
                     });
                 });
@@ -452,7 +455,8 @@ public final class CoreTraceClient implements ClientModInitializer {
             }
             queueExcel = config.queueExcel ? new QueueExcel(exports,
                     CsvFileNames.reserveDirectory(exports, "", "queue-" + NAME.format(Instant.ofEpochMilli(now()))
-                            + "-" + UUID.randomUUID().toString().substring(0, 8)).getFileName().toString()) : null;
+                            + "-" + UUID.randomUUID().toString().substring(0, 8)).getFileName().toString(),
+                    config.queueExcelName) : null;
             createTaskQueue(tasks, config.taskDelayMs, config.queueFinishSound, originals);
         } catch (IllegalArgumentException e) { noticeKey("queue.invalid"); return false; }
         catch (IOException e) { LOGGER.error("Cannot create Excel queue", e); noticeKey("notice.save_failed"); return false; }
@@ -476,14 +480,28 @@ public final class CoreTraceClient implements ClientModInitializer {
                 try { mc.getConnection().sendCommand(command); if (commandCancelled) noticeKey("queue.command_failed"); return !commandCancelled; }
                 finally { ownCommand = false; }
             }
-            public void finished() { playConfiguredSound(finishSound); noticeKey("queue.finished"); }
+            public void finished() {
+                playConfiguredSound(finishSound); noticeKey("queue.finished");
+                QueueExcel completed = queueExcel;
+                if (completed != null) io.execute(() -> {
+                    try {
+                        RecoveryStore.State pending = recoveryStore.load();
+                        if (pending == null || !completed.directoryName().equals(pending.excelDirectory()))
+                            completed.cleanupSources();
+                    } catch (IOException e) {
+                        LOGGER.warn("Cannot clean completed Excel queue inputs", e);
+                        Minecraft.getInstance().execute(() -> noticeKey("queue.excel_cleanup_failed"));
+                    }
+                });
+            }
             public boolean checkpoint(TaskQueue.State state) {
                 if (state.phase() == TaskQueue.Phase.STOPPED) recovery = null;
                 else {
                     var capture = recovery != null && recovery.queue() != null && recovery.queue().index() == state.index()
                             && state.phase() == TaskQueue.Phase.CAPTURE ? recovery.capture() : null;
                     recovery = new RecoveryStore.State(serverKey(), capture, state, finishSound,
-                            queueExcel == null ? null : queueExcel.directoryName());
+                            queueExcel == null ? null : queueExcel.directoryName(),
+                            queueExcel == null ? null : queueExcel.fileName());
                 }
                 return persistRecovery(true);
             }
@@ -595,7 +613,7 @@ public final class CoreTraceClient implements ClientModInitializer {
         io.execute(() -> {
             try {
                 var pages = state.capture() == null ? java.util.List.<CaptureEngine.Page>of() : recoveryStore.pages(state.capture());
-                QueueExcel workbook = state.excelDirectory() == null ? null : new QueueExcel(exports, state.excelDirectory());
+                QueueExcel workbook = state.excelDirectory() == null ? null : new QueueExcel(exports, state.excelDirectory(), state.excelFileName());
                 Minecraft.getInstance().execute(() -> {
                     if (generation != recoveryGeneration) return;
                     restoring = false;

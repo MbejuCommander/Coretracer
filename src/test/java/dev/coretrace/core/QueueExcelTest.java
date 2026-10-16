@@ -37,6 +37,106 @@ class QueueExcelTest {
         var c = new Config(); c.queueExcel = true; c.save(root.resolve("config.json"));
         assertTrue(Config.load(root.resolve("config.json")).queueExcel);
     }
+    @Test void customFilenameIsValidatedAndFrozenAcrossRecoveryAndConfigChanges() throws Exception {
+        Files.createDirectories(root.resolve("book"));
+        assertEquals("", QueueExcel.normalizeName(null));
+        assertEquals("julio", QueueExcel.normalizeName(" julio.xlsx "));
+        for (String invalid : List.of("../escape", "CON", ".xlsx", "bad/name.xlsx", "bad\\name", "name?"))
+            assertThrows(IllegalArgumentException.class, () -> QueueExcel.normalizeName(invalid));
+        var config = new Config(); config.queueExcel = true; config.queueExcelName = " julio.xlsx ";
+        config.save(root.resolve("config.json")); config = Config.load(root.resolve("config.json"));
+        assertEquals("julio", config.queueExcelName);
+        var workbook = new QueueExcel(root, "book", config.queueExcelName);
+        assertEquals("julio.xlsx", workbook.fileName());
+        Path first = csv("one/r.csv", "raw_text\noriginal\n");
+        workbook.saveTask(0, "one", List.of(first));
+        var task = new TaskDefinition(); task.command = ProgressiveCaptureTest.QUERY;
+        var queue = new TaskQueue.State(List.of(task), 3000, 0, 0, TaskQueue.Phase.CUSTOM, 500);
+        var store = new RecoveryStore(root.resolve("recovery.json"), root);
+        store.save(new RecoveryStore.State("server", null, queue, "", workbook.directoryName(), workbook.fileName()));
+        config.queueExcelName = "agosto"; config.save(root.resolve("config.json"));
+        var recovered = store.load();
+        assertEquals("julio.xlsx", recovered.excelFileName());
+        var resumed = new QueueExcel(root, recovered.excelDirectory(), recovered.excelFileName());
+        resumed.saveTask(0, "one", List.of(first));
+        assertEquals(workbook.file(), resumed.file());
+        assertTrue(Files.exists(root.resolve("book/julio.xlsx")));
+        assertFalse(Files.exists(root.resolve("book/agosto.xlsx")));
+    }
+    @Test void blankAndLegacyNamesKeepTasksXlsxWhileRunFoldersPreventCollisions() throws Exception {
+        Files.createDirectories(root.resolve("book")); Files.createDirectories(root.resolve("book2"));
+        assertEquals(root.resolve("book/tasks.xlsx"), new QueueExcel(root, "book", " ").file());
+        assertEquals(root.resolve("book2/julio.xlsx"), new QueueExcel(root, "book2", "julio").file());
+        var task = new TaskDefinition(); task.command = ProgressiveCaptureTest.QUERY;
+        var queue = new TaskQueue.State(List.of(task), 3000, 0, 0, TaskQueue.Phase.CUSTOM, 500);
+        var store = new RecoveryStore(root.resolve("recovery.json"), root);
+        store.save(new RecoveryStore.State("server", null, queue, "", "book"));
+        var old = store.load(); assertNull(old.excelFileName());
+        assertEquals("tasks.xlsx", new QueueExcel(root, old.excelDirectory(), old.excelFileName()).fileName());
+        store.save(new RecoveryStore.State("server", null, queue, "", "book", "../unsafe.xlsx"));
+        assertThrows(IOException.class, store::load);
+    }
+    @Test void completedQueueLeavesOnlyWorkbookAndPreservesUnrelatedExports() throws Exception {
+        var book = book();
+        Path first = csv("one/r.csv", "raw_text\nfirst\n");
+        Path second = csv("two/r.csv", "raw_text\nsecond\n");
+        Files.writeString(root.resolve("one/session.json"), "{}");
+        Files.writeString(root.resolve("one/transcript.log"), "log");
+        Files.writeString(root.resolve("two/summary.txt"), "done");
+        Files.writeString(root.resolve("two/.recovery-page-1.json"), "{}");
+        Path unrelated = csv("unrelated/r.csv", "raw_text\nkeep\n");
+        book.saveTask(0, "one", List.of(first)); book.saveTask(1, "two", List.of(second));
+        book.cleanupSources();
+        assertTrue(Files.exists(book.file()));
+        assertEquals(List.of("one", "two"), names(book.file()));
+        assertFalse(Files.exists(root.resolve("book/queue-excel.json")));
+        assertFalse(Files.exists(root.resolve("one")));
+        assertFalse(Files.exists(root.resolve("two")));
+        assertTrue(Files.exists(unrelated));
+        try (var files = Files.list(root.resolve("book"))) {
+            assertEquals(List.of(book.file()), files.toList());
+        }
+    }
+    @Test void queueCleanupWaitsForEveryCaptureAndItsFinalCommand() throws Exception {
+        var book = book();
+        Path first = csv("one/r.csv", "raw_text\nfirst\n");
+        Path second = csv("two/r.csv", "raw_text\nsecond\n");
+        var tasks = new ArrayList<TaskDefinition>();
+        for (int i = 0; i < 2; i++) {
+            var task = new TaskDefinition(); task.command = ProgressiveCaptureTest.QUERY;
+            tasks.add(task);
+        }
+        tasks.get(1).commands.add(new TaskCommand("/next_world", 750));
+        var host = new TaskQueue.Host() {
+            public boolean start(TaskDefinition task) { return true; }
+            public boolean command(String command) { return true; }
+            public void finished() {
+                try { book.cleanupSources(); }
+                catch (IOException e) { throw new java.io.UncheckedIOException(e); }
+            }
+            public boolean checkpoint(TaskQueue.State state) { return true; }
+        };
+        var queue = new TaskQueue(tasks, 3000, host); queue.start();
+        book.saveTask(0, "one", List.of(first)); queue.exported(CaptureEngine.Outcome.COMPLETE, 0);
+        assertTrue(Files.exists(first)); assertTrue(Files.exists(root.resolve("book/queue-excel.json")));
+        queue.tick(3000);
+        book.saveTask(1, "two", List.of(second)); queue.exported(CaptureEngine.Outcome.COMPLETE, 3000);
+        assertTrue(Files.exists(first)); assertTrue(Files.exists(second));
+        queue.tick(3749); assertTrue(Files.exists(first));
+        queue.tick(3750);
+        assertFalse(Files.exists(first)); assertFalse(Files.exists(second));
+        assertTrue(Files.exists(book.file()));
+    }
+    @Test void cleanupRefusesMissingWorkbookOrUnexpectedFilesWithoutDeletingInputs() throws Exception {
+        var book = book(); Path first = csv("one/r.csv", "raw_text\nfirst\n");
+        book.saveTask(0, "one", List.of(first));
+        Path unexpected = root.resolve("one/extra.csv"); Files.writeString(unexpected, "user file");
+        assertThrows(IOException.class, book::cleanupSources);
+        assertTrue(Files.exists(first)); assertTrue(Files.exists(unexpected));
+        Files.delete(unexpected); Files.delete(book.file());
+        assertThrows(IOException.class, book::cleanupSources);
+        assertTrue(Files.exists(first)); assertTrue(Files.exists(root.resolve("book/queue-excel.json")));
+    }
     @Test void combinesPartsWithOneHeaderPreservesCoordinatesQuotesNewlinesAndLiteralFormulas() throws Exception {
         var book = book();
         Path first = csv("one/one_1.csv", "\uFEFFsep=,\r\nobject,x,y,z,content\r\nstone,-37257,-58,75011,\"a,b\n\"\"quoted\"\" & <tag>\"\r\n");

@@ -13,12 +13,16 @@ public final class RecoveryStore {
     public record Capture(String directory, String command, long startedAt, int page, int total, Config config) {
         public Capture at(int page, int total) { return new Capture(directory, command, startedAt, page, total, config); }
     }
-    public record State(String server, Capture capture, TaskQueue.State queue, String finishSound, String excelDirectory) {
+    public record State(String server, Capture capture, TaskQueue.State queue, String finishSound,
+                        String excelDirectory, String excelFileName) {
         public State(String server, Capture capture, TaskQueue.State queue, String finishSound) {
-            this(server, capture, queue, finishSound, null);
+            this(server, capture, queue, finishSound, null, null);
         }
-        public State withCapture(Capture value) { return new State(server, value, queue, finishSound, excelDirectory); }
-        public State withQueue(TaskQueue.State value) { return new State(server, capture, value, finishSound, excelDirectory); }
+        public State(String server, Capture capture, TaskQueue.State queue, String finishSound, String excelDirectory) {
+            this(server, capture, queue, finishSound, excelDirectory, null);
+        }
+        public State withCapture(Capture value) { return new State(server, value, queue, finishSound, excelDirectory, excelFileName); }
+        public State withQueue(TaskQueue.State value) { return new State(server, capture, value, finishSound, excelDirectory, excelFileName); }
     }
     private static final Gson JSON = new GsonBuilder().setPrettyPrinting().create();
     private final Path pointer, exports;
@@ -55,7 +59,8 @@ public final class RecoveryStore {
             if (state.excelDirectory() != null) {
                 if (state.queue() == null) throw new IOException("Excel recovery requires a queue");
                 QueueExcel.safeDirectory(exports, state.excelDirectory());
-            }
+                QueueExcel.normalizeName(state.excelFileName());
+            } else if (state.excelFileName() != null) throw new IOException("Excel filename without a workbook");
             return state;
         } catch (RuntimeException e) { throw new IOException("Invalid recovery file", e); }
     }

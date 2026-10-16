@@ -291,5 +291,8 @@
   "coretrace.report.grouped": "Resumen limitado a 4096 categorías por grupo; las adicionales se agrupan. CSV y JSON conservan todos los registros.",
   "modmenu.descriptionTranslation.coretrace": "Recorre consultas de CoreProtect y guarda transcripciones, resúmenes y CSV. Solo cliente.",
   "coretrace.queue.excel": "Modo Excel (.xlsx): %s",
-  "coretrace.queue.excel.tooltip": "Desactivado por defecto. Guarda la cola en un libro tasks.xlsx, con una hoja por tarea y sus columnas. Se actualiza al guardar cada tarea; conserva los CSV y la recuperación. Cancelar y guardar incluye el resultado parcial. Las hojas grandes se dividen automáticamente."
+  "coretrace.queue.excel.tooltip": "Desactivado por defecto. Al activarlo puedes nombrar el libro (en blanco: tasks.xlsx). Cada cola usa una carpeta independiente y una hoja por tarea. Durante la cola conserva los CSV y la recuperación; al terminar correctamente deja solo el .xlsx. Una cancelación o error conserva los archivos para recuperarse.",
+  "coretrace.queue.excel_name": "Nombre del libro Excel",
+  "coretrace.queue.invalid_excel_name": "Nombre de Excel no válido",
+  "coretrace.queue.excel_cleanup_failed": "No se pudieron eliminar los archivos de las tareas; el Excel se conservó."
 }

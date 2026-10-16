@@ -1,3 +1,12 @@
+## 1.7.1 — Custom queue workbook names / Nombre del libro Excel
+
+- Show an Excel workbook name field in Task Queue only when Excel mode is enabled; blank uses `tasks.xlsx`.
+- Accept a plain name or `.xlsx` suffix and validate it as a portable filename.
+- Freeze both the unique run directory and the workbook filename in queue recovery, including across client restarts and later configuration edits.
+- Keep CSVs and per-page recovery until every task finishes; on successful queue completion, remove task capture folders and the workbook manifest, leaving only the XLSX in its run folder. Cancelled or failed queues retain their inputs.
+- Add filename, legacy recovery, collision and cleanup tests.
+- Update the Spanish and English guides. Minecraft 26.3 / Java 25 unchanged.
+
 ## 1.7.0 — Queue Excel mode / Modo Excel de la cola
 
 - Optional queue-wide XLSX export, off by default, with a bilingual tooltip and one sheet per task.
