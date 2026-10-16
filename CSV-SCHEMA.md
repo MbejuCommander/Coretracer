@@ -1,4 +1,4 @@
-**CoreTrace 1.7.1 — CSV schema 2**
+**CoreTrace 1.7.3 — CSV schema 2**
 
 Queue Excel mode is an optional `.xlsx` projection of these CSV exports. Each task keeps its selected columns in a separate sheet; all of that task's CSV parts are read in order with one header. The CSV schema and recovery page format are unchanged. See the English or Spanish README for workbook naming, row limits, recovery and cancellation behavior.
 

@@ -21,7 +21,7 @@ public final class CaptureEngine {
         }
         public Settings {
             if (language == null) language = Language.SPANISH;
-            if (delayMs < 750 || timeoutMs < 5000 || settleMs < 1500 || settleMs >= timeoutMs || maxPages < 1)
+            if (delayMs < 750 || timeoutMs < 5000 || settleMs < 1500 || settleMs > timeoutMs - 1000 || maxPages < 1)
                 throw new IllegalArgumentException("Invalid capture settings");
         }
     }
@@ -42,6 +42,7 @@ public final class CaptureEngine {
         default List<Page> history(int firstPage) { return new ArrayList<>(); }
         default void restartExport() {}
         default void recovering(int page) {}
+        default void recoveringChangedResults(int page) { recovering(page); }
         default void restarted() {}
         default boolean ready() { return true; }
     }
@@ -67,30 +68,37 @@ public final class CaptureEngine {
     private SmartCsvOrder smartOrder = new SmartCsvOrder();
     private boolean inspectRecoveryEnabled;
     private long inspectDelay = 4000, interactionAt = Long.MIN_VALUE, lastRecoveryResponse, zeroAt = -1;
-    private int recoveryAttempts, stablePages;
+    private int recoveryAttempts, smartShiftAttempts, stablePages;
     private ResumeCountdown inspectionCountdown;
 
     public void configureInspectionRecovery(boolean enabled, long delay) {
         inspectRecoveryEnabled = enabled; inspectDelay = Math.max(0, delay);
     }
     public ResumeCountdown inspectionCountdown() { return inspectionCountdown; }
+    public long inspectionSeconds(long now) { return inspectionCountdown == null ? 0 : inspectionCountdown.seconds(paused ? pausedAt : now); }
+    public String command() { return command.command(); }
     public void blockInteraction(long now) { if (active()) interactionAt = now; }
     public static boolean related(MessageData m) {
         return CoreProtectParser.header(m) || CoreProtectParser.prefixed(m) || CoreProtectParser.entry(m)
                 || CoreProtectParser.coordinates(m) || CoreProtectParser.pagination(m).isPresent();
     }
-    private void interrupted(long now) {
+    private void interrupted(long now) { interrupted(now, false); }
+    private void interrupted(long now, boolean changedResults) {
         pending.clear(); hadEntry = false;
-        if (!command.query() || !inspectRecoveryEnabled || ++recoveryAttempts > 3) {
-            endKey(Outcome.MISMATCH, "inspect.stopped", now); return;
+        boolean retry = command.query() && (changedResults
+                ? settings.smartCsv() && ++smartShiftAttempts <= 3
+                : inspectRecoveryEnabled && ++recoveryAttempts <= 3);
+        if (!retry) {
+            endKey(Outcome.MISMATCH, changedResults ? "smart.changed_order" : "inspect.stopped", now); return;
         }
         expected = command.firstPage() + pages.size();
         recreating = false; recreationHeader = false; recreationReadyAt = -1;
         paused = false; phase = Phase.WAITING; stablePages = 0;
         inspectionCountdown = new ResumeCountdown(now, inspectDelay);
         lastRecoveryResponse = now; zeroAt = -1;
-        setDetail("inspect.waiting", expected);
-        sink.recovering(expected);
+        setDetail(changedResults ? "smart.shift_waiting" : "inspect.waiting", expected);
+        if (changedResults) sink.recoveringChangedResults(expected);
+        else sink.recovering(expected);
     }
     private void restartInspection(long now) {
         inspectionCountdown = null; interactionAt = Long.MIN_VALUE;
@@ -189,6 +197,7 @@ public final class CaptureEngine {
         boolean entry = CoreProtectParser.entry(m);
         if (entry && settings.smartCsv()) {
             String error = smartOrder.accept(EventParser.parse(m, EventParser.query(command.command())).timestamp());
+            if ("smart.changed_order".equals(error)) { interrupted(now, true); return true; }
             if (error != null) { append(m, now); endKey(Outcome.MISMATCH, error, now); return true; }
         }
         if (entry || (hadEntry && CoreProtectParser.coordinates(m)) || m.text().strip().matches("-{3,}")) {
@@ -259,8 +268,14 @@ public final class CaptureEngine {
         if (!paused) { paused = true; pausedAt = now; }
         else {
             long delta = now - pausedAt; requestedAt += delta; lastLine = now;
-            nextAt = Math.max(nextAt, now + settings.delayMs()); paused = false;
-            if (recreationReadyAt >= 0) recreationReadyAt = now + settings.delayMs();
+            if (phase == Phase.BETWEEN) nextAt += delta;
+            paused = false;
+            if (recreationReadyAt >= 0) recreationReadyAt += delta;
+            if (inspectionCountdown != null) {
+                inspectionCountdown.shift(delta);
+                lastRecoveryResponse = now;
+                if (zeroAt >= 0) zeroAt += delta;
+            }
         }
     }
     public void end(Outcome outcome, String why, long now) {

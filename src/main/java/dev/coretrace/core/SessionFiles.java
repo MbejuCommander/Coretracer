@@ -74,7 +74,7 @@ public final class SessionFiles implements AutoCloseable {
         this.command = command; this.firstPage = LookupCommand.parse(command).orElseThrow().firstPage();
         Files.createDirectories(directory);
         log = Files.newBufferedWriter(directory.resolve("transcript.log"), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
-        log.write(tr("log.start", "1.7.1+26.3") + "\n");
+        log.write(tr("log.start", "1.7.3+26.3") + "\n");
         log.write(tr("log.metadata", command, MessageData.clean(server), Instant.ofEpochMilli(started), language.nativeName()) + "\n\n");
         log.flush();
     }

@@ -129,7 +129,10 @@ final class SettingsScreen extends BaseScreen {
             catch (IllegalArgumentException e) { error = "recovery.invalid_delay"; tab = 3; rebuildWidgets(); return false; }
             int d = Integer.parseInt(values[0]), t = Integer.parseInt(values[1]);
             int s = Integer.parseInt(values[2]), m = Integer.parseInt(values[3]), cp = Integer.parseInt(values[4]);
-            if (d < 750 || d > 30000 || t < 5000 || t > 180000 || s < 1500 || s > t - 1000 || m < 1 || m > 9_999_999 || cp < 0 || cp > 5000)
+            if (d < 750 || d > 30000) return invalidCapture("ui.settings.delay_invalid");
+            if (t < 5000 || t > 180000) return invalidCapture("ui.settings.timeout_invalid");
+            if (s < 1500 || s > t - 1000) return invalidCapture("ui.settings.settle_invalid");
+            if (m < 1 || m > 9_999_999 || cp < 0 || cp > 5000)
                 throw new IllegalArgumentException();
             var c = target;
             c.delayMs = d; c.timeoutMs = t; c.settleMs = s; c.maxPages = m; c.csvPagesPerFile = cp;
@@ -137,6 +140,7 @@ final class SettingsScreen extends BaseScreen {
             persist.run(); return true;
         } catch (IllegalArgumentException e) { error = "ui.settings.invalid"; return false; }
     }
+    private boolean invalidCapture(String key) { error = key; tab = 0; rebuildWidgets(); return false; }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         super.extractRenderState(g, mx, my, delta); int half = (panelWidth - 6) / 2;
         if (tab == 0) {

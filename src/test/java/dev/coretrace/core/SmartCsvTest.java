@@ -51,16 +51,46 @@ class SmartCsvTest {
         assertEquals(CaptureEngine.Outcome.MISMATCH, sink.result.outcome());
         assertEquals(1, Report.rows(sink.result).size());
     }
-    @Test void timestampsMustRemainDescendingAcrossPagesAndValid() {
+    @Test void shiftedPageRestartsFromOneAndExportsOnlyRefreshedRows() {
         var sink = new RecoveryTest.Sink();
-        var engine = new CaptureEngine(LookupCommand.parse(QUERY).orElseThrow(), smart().settings(), sink, "server", 1);
-        page(engine, 1, 2, 1, sign(20, "first")); engine.tick(1501);
-        page(engine, 2, 2, 1600, sign(21, "unexpected newer record"));
+        var engine = new CaptureEngine(LookupCommand.parse(QUERY).orElseThrow(), smart().settings(), sink, "server", 1000);
+        page(engine, 1, 3, 1000, sign(20, "old A"), sign(19, "old B"));
+        engine.tick(2500); page(engine, 2, 3, 2600, sign(21, "shifted record"));
+        assertTrue(engine.active()); assertNotNull(engine.inspectionCountdown());
+        engine.tick(6600); engine.tick(6850);
+        assertEquals(0, engine.completedPages());
+        assertEquals(1, engine.expectedPage());
+        assertEquals(QUERY, sink.sent.getLast());
+        page(engine, 1, 3, 6900, sign(22, "new"), sign(21, "shifted record"));
+        engine.tick(8400); page(engine, 2, 3, 8500, sign(20, "old A"), sign(19, "old B"));
+        engine.tick(10000); page(engine, 3, 3, 10100, sign(18, "old C"));
+        assertEquals(CaptureEngine.Outcome.COMPLETE, sink.result.outcome());
+        assertEquals(List.of("new", "shifted record", "old A", "old B", "old C"),
+                Report.rows(sink.result).stream().map(r -> r.entry().content()).toList());
+    }
+    @Test void repeatedShiftsStopAfterThreeFullRestarts() {
+        var sink = new RecoveryTest.Sink();
+        var engine = new CaptureEngine(LookupCommand.parse(QUERY).orElseThrow(), smart().settings(), sink, "server", 1000);
+        long now = 1000;
+        for (int attempt = 0; attempt < 4; attempt++) {
+            page(engine, 1, 2, now, sign(20, "old"));
+            engine.tick(now + 1500);
+            page(engine, 2, 2, now + 1600, sign(21, "new"));
+            if (attempt < 3) {
+                assertTrue(engine.active());
+                engine.tick(now + 5600); engine.tick(now + 5850);
+                assertEquals(QUERY, sink.sent.getLast());
+                now += 6000;
+            }
+        }
         assertEquals(CaptureEngine.Outcome.MISMATCH, sink.result.outcome());
+        assertEquals(3, sink.sent.stream().filter(QUERY::equals).count());
+    }
+    @Test void timestampValidationStillRejectsInvalidDatesAndChangedZones() {
         var order = new SmartCsvOrder();
         assertNotNull(order.accept("2026-02-30 12:00:00 UTC"));
         assertNull(order.accept("2026-10-10 12:00:00 UTC"));
-        assertNotNull(order.accept("2026-10-10 11:00:00 GMT"));
+        assertEquals("smart.changed_zone", order.accept("2026-10-10 11:00:00 GMT"));
     }
     @Test void timestampCannotBeRemovedWhileSmartModeIsEnabledAndClearAllPreservesIt() throws Exception {
         var c = smart(); var draft = new CsvColumnSelection(c.csvColumns);

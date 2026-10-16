@@ -61,6 +61,18 @@ class CaptureEngineTest {
         Harness h=new Harness();h.body();h.footer(1,3);h.footer(1,3);h.after(1500);
         assertEquals(List.of("co l 2"),h.sent);assertEquals(1,h.committed.size());
     }
+    @Test void pageDelayKeepsOnlyItsRemainingTimeAfterPause() {
+        Harness h = new Harness(); h.body(); h.footer(1, 2);
+        h.after(500); h.engine.togglePause(h.now);
+        h.after(10000); assertTrue(h.sent.isEmpty());
+        h.engine.togglePause(h.now);
+        h.after(999); assertTrue(h.sent.isEmpty());
+        h.after(1); assertEquals(List.of("co l 2"), h.sent);
+    }
+    @Test void noFooterWaitNeedsOneSecondBeforeRequestTimeout() {
+        assertThrows(IllegalArgumentException.class, () -> new CaptureEngine.Settings(1500, 5000, 4001, 1));
+        assertDoesNotThrow(() -> new CaptureEngine.Settings(1500, 5000, 4000, 1));
+    }
     @Test void waitsForDelayedFooterInsteadOfSendingBlindly() {
         Harness h=new Harness();h.body();h.after(3000);assertTrue(h.sent.isEmpty());h.footer(1,3);h.after(1500);
         assertEquals(List.of("co l 2"),h.sent);

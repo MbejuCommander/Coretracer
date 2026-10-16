@@ -10,6 +10,7 @@ final class TaskQueueScreen extends BaseScreen {
     private DelayWarningButton delayWarning;
     private String error = "";
     private boolean wasBusy;
+    private boolean wasPaused, wasSkippable;
     TaskQueueScreen(Screen parent) { super(parent, "queue.title"); }
     private boolean saveDelay() {
         int parsedDelay;
@@ -61,7 +62,7 @@ final class TaskQueueScreen extends BaseScreen {
             excelName.active = !mod.busy();
         }
         int taskTop = mod.config().queueExcel ? 146 : 120;
-        int perPage = Math.max(1, (height - (taskTop + 74)) / 27);
+        int perPage = Math.max(1, (height - (taskTop + 112)) / 27);
         var tasks = mod.config().tasks;
         int pages = Math.max(1, (tasks.size() + perPage - 1) / perPage);
         page = Math.clamp(page, 0, pages - 1);
@@ -86,11 +87,30 @@ final class TaskQueueScreen extends BaseScreen {
         }
         button("←", left, height - 67, 30, () -> { page--; rebuildWidgets(); }).active = page > 0;
         button("→", left + 34, height - 67, 30, () -> { page++; rebuildWidgets(); }).active = page + 1 < pages;
+        int controlWidth = (panelWidth - 6) / 2;
+        var pause = button(tr(mod.queuePaused() ? "queue.resume" : "queue.pause"), left, height - 105,
+                controlWidth, () -> { mod.toggleQueuePause(); rebuildWidgets(); });
+        pause.active = mod.queueActive();
+        pause.setTooltip(net.minecraft.client.gui.components.Tooltip.create(net.minecraft.network.chat.Component.literal(
+                tr(mod.queuePaused() ? "queue.resume.tooltip" : "queue.pause.tooltip"))));
+        var cancelTask = button(tr("queue.cancel_task"), left + controlWidth + 6, height - 105,
+                panelWidth - controlWidth - 6, () -> { mod.cancelCurrentTask(); rebuildWidgets(); });
+        cancelTask.active = mod.canSkipCurrentTask();
+        cancelTask.setTooltip(net.minecraft.client.gui.components.Tooltip.create(net.minecraft.network.chat.Component.literal(
+                tr("queue.cancel_task.tooltip"))));
         button(tr("queue.run"), left + 70, height - 67, (panelWidth - 76) / 2, () -> { if (saveDelay()) { mod.startTasks(); rebuildWidgets(); } }).active = !mod.busy() && !tasks.isEmpty();
-        button(tr("queue.stop"), left + 76 + (panelWidth - 76) / 2, height - 67, (panelWidth - 76) / 2, () -> { mod.cancel(); rebuildWidgets(); }).active = mod.busy();
+        var stop = button(tr("queue.stop"), left + 76 + (panelWidth - 76) / 2, height - 67,
+                (panelWidth - 76) / 2, () -> { mod.cancel(); rebuildWidgets(); });
+        stop.active = mod.queueActive();
+        stop.setTooltip(net.minecraft.client.gui.components.Tooltip.create(net.minecraft.network.chat.Component.literal(
+                tr("queue.stop.tooltip"))));
         button(tr("common.back"), left, height - 28, panelWidth, this::onClose);
+        wasBusy = mod.busy(); wasPaused = mod.queuePaused(); wasSkippable = mod.canSkipCurrentTask();
     }
-    @Override public void tick() { if (wasBusy != mod.busy()) { wasBusy = mod.busy(); rebuildWidgets(); } }
+    @Override public void tick() {
+        if (wasBusy != mod.busy() || wasPaused != mod.queuePaused() || wasSkippable != mod.canSkipCurrentTask())
+            rebuildWidgets();
+    }
     @Override public void onClose() { if (saveDelay()) super.onClose(); }
     private static boolean shortDelay(String value) {
         try { return TaskDefinition.taskDelay(value) < 3000; }

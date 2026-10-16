@@ -2,13 +2,15 @@ package dev.coretrace.core;
 
 /** No blocking sleep, one notification per elapsed second, safe even for very large delays. */
 public final class ResumeCountdown {
-    private final long started, delay;
+    private long started;
+    private final long delay;
     private long lastSecond;
     public ResumeCountdown(long now, long delay) {
         if (delay < 0) throw new IllegalArgumentException("Negative delay");
         this.started = now; this.delay = delay;
     }
     public long delay() { return delay; }
+    public void shift(long millis) { started += Math.max(0, millis); }
     public long remaining(long now) { return Math.max(0, delay - Math.max(0, now - started)); }
     public long seconds(long now) { long r = remaining(now); return r / 1000 + (r % 1000 == 0 ? 0 : 1); }
     public boolean soundDue(long now) {

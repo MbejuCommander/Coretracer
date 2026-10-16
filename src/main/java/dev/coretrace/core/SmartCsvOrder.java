@@ -15,7 +15,8 @@ public final class SmartCsvOrder {
         try {
             LocalDateTime next = LocalDateTime.parse(timestamp.substring(0, 19), FORMAT);
             String nextZone = timestamp.substring(19).strip();
-            if (previous != null && (!nextZone.equals(zone) || next.isAfter(previous))) return "smart.changed_order";
+            if (previous != null && !nextZone.equals(zone)) return "smart.changed_zone";
+            if (previous != null && next.isAfter(previous)) return "smart.changed_order";
             previous = next; zone = nextZone;
             return null;
         } catch (java.time.DateTimeException e) { return "smart.missing_time"; }

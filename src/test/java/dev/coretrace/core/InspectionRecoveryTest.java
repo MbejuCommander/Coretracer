@@ -50,6 +50,17 @@ class InspectionRecoveryTest {
             assertEquals(1, h.finalResult.pages().size()); assertTrue(h.finalResult.pending().isEmpty());
         }
     }
+    @Test void pausingRecoveryFreezesTheCountdownAndDoesNotSendWhilePaused() {
+        var h = harness(); h.body(); h.footer(1, 2);
+        h.engine.blockInteraction(h.now); h.receive(CaptureEngineTest.HEADER);
+        h.after(1000); h.engine.togglePause(h.now);
+        h.after(10000);
+        assertEquals(3, h.engine.inspectionSeconds(h.now));
+        assertTrue(h.sent.isEmpty());
+        h.engine.togglePause(h.now);
+        h.after(3000); assertTrue(h.sent.isEmpty());
+        h.after(500); assertEquals(List.of("co l a:-block u:jose t:3d"), h.sent);
+    }
     @Test void smartRecoveryRebuildsFromPageOneInsteadOfSplicingOldResults() {
         var sent = new ArrayList<String>(); var reset = new int[1];
         CaptureEngine.Sink sink = new CaptureEngine.Sink() {

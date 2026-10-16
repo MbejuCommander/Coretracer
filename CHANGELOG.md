@@ -1,3 +1,18 @@
+## 1.7.3 — Timing safeguards / Protección de tiempos
+
+- Quarantine responses after cancelling a live capture: wait at least its request timeout and extend the hold when late CoreProtect messages arrive before starting the next queued task.
+- Preserve only the remaining page delay across a pause and enforce a 1000 ms separation between no-footer wait and request timeout in both UI and engine.
+- Show specific capture timing errors instead of a generic invalid-values message. Keep deliberately permitted short queue, custom command, recovery and reconnect delays.
+
+## 1.7.2 — Smart CSV recovery and queue controls / Recuperación CSV y controles de cola
+
+- When a newer server timestamp appears on a later page, wait for CoreProtect responses to settle and restart the complete query from page 1 instead of immediately ending the capture.
+- Allow three full-query retries per capture, including in Task Queue. Keep a partial result and recovery state if the server continues changing.
+- Treat a changed timestamp timezone as a separate error; it does not trigger page-shift retries.
+- Preserve the configured recovery countdown and sounds, with a specific warning for changing results.
+- Add Pause/Resume queue and Cancel current task to Task Queue, with bilingual hover help. Pause survives recovery; cancelling one task saves partial results and continues without its custom commands.
+- Keep source folders if any queue task was cancelled, including in Excel mode. Stop queue continues to end the entire run.
+
 ## 1.7.1 — Custom queue workbook names / Nombre del libro Excel
 
 - Show an Excel workbook name field in Task Queue only when Excel mode is enabled; blank uses `tasks.xlsx`.

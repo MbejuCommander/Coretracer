@@ -42,6 +42,7 @@ public final class CoreTraceClient implements ClientModInitializer {
     private Path configPath, exports;
     private CaptureEngine engine;
     private TaskQueue taskQueue;
+    private boolean queueCaptureAwaitingCommand;
     private QueueExcel queueExcel;
     private Config captureConfig;
     private boolean saving;
@@ -69,6 +70,7 @@ public final class CoreTraceClient implements ClientModInitializer {
         final SessionFiles files;
         volatile boolean failed;
         boolean cancelRequested;
+        boolean skipCurrent;
         boolean stopQueueAfterSave;
         final java.util.concurrent.atomic.AtomicInteger work = new java.util.concurrent.atomic.AtomicInteger();
         Context(Path path, Language language, Config config) { files = new SessionFiles(path, language, config); }
@@ -88,8 +90,9 @@ public final class CoreTraceClient implements ClientModInitializer {
                 Identifier.fromNamespaceAndPath("coretrace", "resume_countdown"), (graphics, delta) -> {
                     var mc = Minecraft.getInstance();
                     var countdown = active() && engine.inspectionCountdown() != null ? engine.inspectionCountdown() : resumeCountdown;
-                    if (countdown != null && mc.player != null) {
-                        graphics.centeredText(mc.font, tr("recovery.countdown", countdown.seconds(now())),
+                if (countdown != null && mc.player != null) {
+                        graphics.centeredText(mc.font, tr("recovery.countdown", active() && engine.inspectionCountdown() != null
+                                ? engine.inspectionSeconds(now()) : countdown.seconds(now())),
                                 mc.getWindow().getGuiScaledWidth() / 2, mc.getWindow().getGuiScaledHeight() / 2 + 18, 0xFFFF5555);
                     }
                 });
@@ -146,7 +149,7 @@ public final class CoreTraceClient implements ClientModInitializer {
             if (openPending) { openPending = false; client.gui.setScreen(new MainScreen(client.gui.screen(), null)); }
             if (active()) {
                 var countdown = engine.inspectionCountdown();
-                if (countdown != null && countdown.soundDue(now())) playConfiguredSound("minecraft:entity.experience_orb.pickup");
+                if (countdown != null && !engine.paused() && countdown.soundDue(now())) playConfiguredSound("minecraft:entity.experience_orb.pickup");
                 engine.tick(now());
             }
             if (queueActive()) taskQueue.tick(now());
@@ -175,8 +178,14 @@ public final class CoreTraceClient implements ClientModInitializer {
                 .executes(c -> { openPending = true; return 1; })
                 .then(literal("start").then(argument("query", StringArgumentType.greedyString())
                     .executes(c -> start(StringArgumentType.getString(c, "query")) ? 1 : 0)))
-                .then(literal("pause").executes(c -> { if (active() && !engine.paused()) togglePause(); return 1; }))
-                .then(literal("resume").executes(c -> { if (active() && engine.paused()) togglePause(); return 1; }))
+                .then(literal("pause").executes(c -> {
+                    if (queueActive() && !queuePaused()) toggleQueuePause();
+                    else if (!queueActive() && active() && !engine.paused()) togglePause(); return 1;
+                }))
+                .then(literal("resume").executes(c -> {
+                    if (queuePaused()) toggleQueuePause();
+                    else if (!queueActive() && active() && engine.paused()) togglePause(); return 1;
+                }))
                 .then(literal("cancel").executes(c -> { cancel(); return 1; }))
                 .then(literal("folder").executes(c -> { openExports(); return 1; }))
                 .then(literal("status").executes(c -> { displayNotice(status()); return 1; }))
@@ -250,6 +259,13 @@ public final class CoreTraceClient implements ClientModInitializer {
                 mc.gui.hud.getChat().addClientSystemMessage(Component.literal("[CoreTrace] " + tr("inspect.warning", page, runConfig.autoResumeDelayMs))
                         .withStyle(net.minecraft.ChatFormatting.RED));
             }
+            @Override public void recoveringChangedResults(int page) {
+                checkpointCapture(page, engine.totalPages(), null);
+                playConfiguredSound("minecraft:entity.villager.no");
+                playConfiguredSound("minecraft:entity.experience_orb.pickup");
+                mc.gui.hud.getChat().addClientSystemMessage(Component.literal("[CoreTrace] " + tr("smart.shift_warning", page, runConfig.autoResumeDelayMs))
+                        .withStyle(net.minecraft.ChatFormatting.RED));
+            }
             @Override public void restarted() {
                 playConfiguredSound("minecraft:entity.villager.yes");
                 noticeKey("inspect.resuming");
@@ -284,12 +300,16 @@ public final class CoreTraceClient implements ClientModInitializer {
                         playConfiguredSound(runConfig.finishSound);
                         if (context == ctx) setFeedback("notice.finished", snapshot.outcome(), snapshot.pages().size());
                         displayNotice(tr("notice.finished", snapshot.outcome(), snapshot.pages().size()));
-                        if (owner != null && owner == taskQueue) owner.exported(snapshot.outcome(), now());
+                        if (owner != null && owner == taskQueue) {
+                            if (ctx.skipCurrent && snapshot.outcome() == CaptureEngine.Outcome.CANCELLED)
+                                owner.skipCurrent(now(), runConfig.timeoutMs);
+                            else owner.exported(snapshot.outcome(), now());
+                        }
                         boolean savedCancellation = (snapshot.outcome() == CaptureEngine.Outcome.CANCELLED && ctx.cancelRequested)
                                 || ctx.stopQueueAfterSave;
                         if (savedCancellation || (snapshot.outcome().successful() && (owner == null || ctx.stopQueueAfterSave)))
                             discardRecovery();
-                        if (snapshot.outcome().successful() || savedCancellation) io.execute(() -> {
+                        if (snapshot.outcome().successful() || savedCancellation || ctx.skipCurrent) io.execute(() -> {
                             try {
                                 if (Files.isDirectory(ctx.files.directory()))
                                     recoveryStore.cleanupCompleted(ctx.files.directory());
@@ -369,7 +389,30 @@ public final class CoreTraceClient implements ClientModInitializer {
         catch (IOException e) { noticeKey("notice.config_save", e.getMessage()); LOGGER.warn("Config", e); }
     }
     public void togglePause() { if (active()) engine.togglePause(now()); }
+    public boolean queuePaused() { return queueActive() && taskQueue.paused(); }
+    public boolean canSkipCurrentTask() { return queueActive() && taskQueue.canSkipCurrent() && !saving; }
+    public void toggleQueuePause() {
+        if (!queueActive()) return;
+        boolean pause = !taskQueue.paused();
+        if (!taskQueue.setPaused(pause, now())) { noticeKey("recovery.save_failed"); return; }
+        if (active()) {
+            if (engine.paused() == !pause) engine.togglePause(now());
+            if (!pause && queueCaptureAwaitingCommand) {
+                queueCaptureAwaitingCommand = false;
+                sendLookup(engine.command());
+            }
+        }
+        noticeKey(pause ? "queue.paused" : "queue.resumed");
+    }
+    public void cancelCurrentTask() {
+        if (!canSkipCurrentTask()) return;
+        if (active()) {
+            if (context != null) context.skipCurrent = true;
+            engine.endKey(CaptureEngine.Outcome.CANCELLED, "queue.task_cancelled", now());
+        } else taskQueue.skipCurrent(now());
+    }
     public void cancel() {
+        queueCaptureAwaitingCommand = false;
         if (queueActive()) taskQueue.cancel();
         if (active()) {
             if (context != null) context.cancelRequested = true;
@@ -470,8 +513,14 @@ public final class CoreTraceClient implements ClientModInitializer {
         taskQueue = new TaskQueue(tasks, delay, new TaskQueue.Host() {
             public boolean start(TaskDefinition task) {
                 int current = taskQueue.position() - 1;
-                return begin(LookupCommand.parse(task.command).orElseThrow(), true, task.effective(config),
+                boolean deferred = taskQueue.paused();
+                boolean started = begin(LookupCommand.parse(task.command).orElseThrow(), !deferred, task.effective(config),
                         originals == null ? task : originals.get(current));
+                if (started && deferred) {
+                    queueCaptureAwaitingCommand = true;
+                    engine.togglePause(now());
+                }
+                return started;
             }
             public boolean command(String command) {
                 var mc = Minecraft.getInstance();
@@ -480,8 +529,13 @@ public final class CoreTraceClient implements ClientModInitializer {
                 try { mc.getConnection().sendCommand(command); if (commandCancelled) noticeKey("queue.command_failed"); return !commandCancelled; }
                 finally { ownCommand = false; }
             }
+            @Override public boolean readyForNextTask() { return now() >= readyAfter; }
             public void finished() {
-                playConfiguredSound(finishSound); noticeKey("queue.finished");
+                finished(true);
+            }
+            @Override public void finished(boolean complete) {
+                playConfiguredSound(finishSound); noticeKey(complete ? "queue.finished" : "queue.finished_partial");
+                if (!complete) return;
                 QueueExcel completed = queueExcel;
                 if (completed != null) io.execute(() -> {
                     try {
@@ -513,7 +567,8 @@ public final class CoreTraceClient implements ClientModInitializer {
     public String status() {
         if (resumeCountdown != null) return tr("recovery.countdown", resumeCountdown.seconds(now()));
         if (restoring) return tr("recovery.loading");
-        if (queueActive()) return tr("queue.progress", taskQueue.position(), taskQueue.size()) + " · " + (active() ? engine.detail(language()) : feedback());
+        if (queueActive()) return tr("queue.progress", taskQueue.position(), taskQueue.size()) + " · "
+                + (taskQueue.paused() ? tr("queue.paused") : active() ? engine.detail(language()) : feedback());
         if (active()) return engine.detail(language());
         if (now() < readyAfter) return tr("status.cooldown", (readyAfter - now()) / 1000 + 1, feedback());
         return feedback();
@@ -553,6 +608,7 @@ public final class CoreTraceClient implements ClientModInitializer {
         }
     }
     private void disconnected(String reason) {
+        queueCaptureAwaitingCommand = false;
         ++recoveryGeneration; restoring = false; resumeCountdown = null;
         if (queueActive() && recovery != null) recovery = recovery.withQueue(taskQueue.snapshot(now()));
         if (active()) checkpointCapture(engine.nextRecoveryPage(), engine.totalPages(), null);
