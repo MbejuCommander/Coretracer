@@ -91,7 +91,6 @@ public final class RecoveryStore {
         return true;
     }
     public List<CaptureEngine.Page> pages(Capture c) throws IOException {
-        if (c.config().smartCsvEnabled()) return List.of();
         return PageHistory.load(directory(c), 1, c.page() - 1);
     }
 }

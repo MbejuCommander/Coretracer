@@ -63,6 +63,32 @@ class QueueExcelTest {
         assertTrue(Files.exists(root.resolve("book/julio.xlsx")));
         assertFalse(Files.exists(root.resolve("book/agosto.xlsx")));
     }
+    @Test void namedRunFolderMatchesWorkbookAndCollisionStillRestoresExactFolder() throws Exception {
+        var first = QueueExcel.createRun(root, "commandOctober30.xlsx", "queue-fallback");
+        assertEquals(root.resolve("commandOctober30"), first.file().getParent());
+        assertEquals(root.resolve("commandOctober30/commandOctober30.xlsx"), first.file());
+        var second = QueueExcel.createRun(root, "commandOctober30", "queue-fallback");
+        assertEquals(root.resolve("commandOctober30 (2)/commandOctober30.xlsx"), second.file());
+        var blank = QueueExcel.createRun(root, "", "queue-fallback");
+        assertEquals(root.resolve("queue-fallback/tasks.xlsx"), blank.file());
+        var task = new TaskDefinition(); task.command = ProgressiveCaptureTest.QUERY;
+        var queue = new TaskQueue.State(List.of(task), 3000, 0, 0, TaskQueue.Phase.CUSTOM, 500);
+        var store = new RecoveryStore(root.resolve("recovery.json"), root);
+        store.save(new RecoveryStore.State("server", null, queue, "", second.directoryName(), second.fileName()));
+        var state = store.load();
+        assertEquals(second.file(), new QueueExcel(root, state.excelDirectory(), state.excelFileName()).file());
+    }
+    @Test void taskCsvNameMatchingWorkbookFolderStillCleansOnlyTaskInputs() throws Exception {
+        var workbook = QueueExcel.createRun(root, "same", "queue-fallback");
+        Path taskDirectory = CsvFileNames.reserveDirectory(root, "same", "task-fallback");
+        assertEquals(root.resolve("same (2)"), taskDirectory);
+        Path csv = taskDirectory.resolve("same.csv");
+        Files.writeString(csv, "server_timestamp,raw_text\n2026-10-30 12:00:00 UTC,hello\n");
+        workbook.saveTask(0, "same", List.of(csv));
+        workbook.cleanupSources();
+        assertTrue(Files.isRegularFile(workbook.file()));
+        assertFalse(Files.exists(taskDirectory));
+    }
     @Test void blankAndLegacyNamesKeepTasksXlsxWhileRunFoldersPreventCollisions() throws Exception {
         Files.createDirectories(root.resolve("book")); Files.createDirectories(root.resolve("book2"));
         assertEquals(root.resolve("book/tasks.xlsx"), new QueueExcel(root, "book", " ").file());

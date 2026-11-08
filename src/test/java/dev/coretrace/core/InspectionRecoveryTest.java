@@ -61,7 +61,7 @@ class InspectionRecoveryTest {
         h.after(3000); assertTrue(h.sent.isEmpty());
         h.after(500); assertEquals(List.of("co l a:-block u:jose t:3d"), h.sent);
     }
-    @Test void smartRecoveryRebuildsFromPageOneInsteadOfSplicingOldResults() {
+    @Test void smartRecoveryKeepsSavedPagesWhileLookingForAnOverlap() {
         var sent = new ArrayList<String>(); var reset = new int[1];
         CaptureEngine.Sink sink = new CaptureEngine.Sink() {
             public void send(String s) { sent.add(s); }
@@ -77,7 +77,7 @@ class InspectionRecoveryTest {
         e.accept(MessageData.plain("Page 1/3", 1), 1);
         e.blockInteraction(2); e.accept(MessageData.plain(CaptureEngineTest.HEADER, 2), 2);
         e.tick(4002); e.tick(4252);
-        assertEquals(1, reset[0]); assertEquals(0, e.completedPages()); assertEquals(1, e.expectedPage());
+        assertEquals(0, reset[0]); assertEquals(1, e.completedPages()); assertEquals(2, e.expectedPage());
         assertEquals(List.of("co l a:sign t:7d"), sent);
     }
     @Test void queueCannotRunCustomCommandsUntilRecoveredCaptureIsExported() {

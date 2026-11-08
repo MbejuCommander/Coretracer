@@ -1,5 +1,6 @@
 package dev.coretrace.core;
 
+import com.google.gson.Gson;
 import java.nio.file.*;
 import java.util.*;
 import org.junit.jupiter.api.Test;
@@ -20,22 +21,17 @@ class SmartCsvTest {
     }
     private static Config smart() { var c = new Config(); c.csvSmart = true; return c; }
 
-    @Test void fourNewSignsShiftOldEntriesAndChangedPageCountIsAcceptedOnRefresh() {
+    @Test void tooFewDistinctAnchorsPreserveSavedPageAsPartial() {
         var sink = new RecoveryTest.Sink();
         var old = List.of(new CaptureEngine.Page(1, true, List.of(sign(20, "old A"), sign(19, "old B"))));
         var engine = CaptureEngine.resume(LookupCommand.parse(QUERY).orElseThrow(), smart().settings(), sink,
                 "example.test", 1000, 1, 2, 2, old);
-        assertEquals(1, engine.expectedPage()); assertEquals(0, engine.completedPages());
+        assertEquals(2, engine.expectedPage()); assertEquals(1, engine.completedPages());
         page(engine, 1, 3, 1000, sign(24, "new 1"), sign(23, "new 2"), sign(22, "new 3"), sign(21, "new 4"));
-        engine.tick(2500); assertEquals(List.of("co l 2"), sink.sent);
-        page(engine, 2, 3, 2600, sign(20, "old A"), sign(19, "old B"));
+        engine.tick(2500); page(engine, 2, 3, 2600, sign(20, "old A"), sign(19, "old B"));
         engine.tick(4100); page(engine, 3, 3, 4200, sign(18, "remaining"));
-        assertEquals(CaptureEngine.Outcome.COMPLETE, sink.result.outcome());
-        var rows = Report.rows(sink.result);
-        assertEquals(7, rows.size());
-        assertEquals(List.of(1, 1, 1, 1, 2, 2, 3), rows.stream().map(Report.Row::page).toList());
-        assertEquals(List.of("new 1", "new 2", "new 3", "new 4", "old A", "old B", "remaining"),
-                rows.stream().map(r -> r.entry().content()).toList());
+        assertEquals(CaptureEngine.Outcome.MISMATCH, sink.result.outcome());
+        assertEquals(1, engine.completedPages());
     }
     @Test void identicalEventsInTheSameSecondRemainSeparate() {
         var sink = new RecoveryTest.Sink();
@@ -51,40 +47,77 @@ class SmartCsvTest {
         assertEquals(CaptureEngine.Outcome.MISMATCH, sink.result.outcome());
         assertEquals(1, Report.rows(sink.result).size());
     }
-    @Test void shiftedPageRestartsFromOneAndExportsOnlyRefreshedRows() {
+    @Test void shiftedPageKeepsSavedProgressDuringOverlapSearch() {
         var sink = new RecoveryTest.Sink();
         var engine = new CaptureEngine(LookupCommand.parse(QUERY).orElseThrow(), smart().settings(), sink, "server", 1000);
         page(engine, 1, 3, 1000, sign(20, "old A"), sign(19, "old B"));
         engine.tick(2500); page(engine, 2, 3, 2600, sign(21, "shifted record"));
         assertTrue(engine.active()); assertNotNull(engine.inspectionCountdown());
         engine.tick(6600); engine.tick(6850);
-        assertEquals(0, engine.completedPages());
-        assertEquals(1, engine.expectedPage());
+        assertEquals(1, engine.completedPages());
+        assertEquals(2, engine.expectedPage());
         assertEquals(QUERY, sink.sent.getLast());
         page(engine, 1, 3, 6900, sign(22, "new"), sign(21, "shifted record"));
-        engine.tick(8400); page(engine, 2, 3, 8500, sign(20, "old A"), sign(19, "old B"));
-        engine.tick(10000); page(engine, 3, 3, 10100, sign(18, "old C"));
-        assertEquals(CaptureEngine.Outcome.COMPLETE, sink.result.outcome());
-        assertEquals(List.of("new", "shifted record", "old A", "old B", "old C"),
-                Report.rows(sink.result).stream().map(r -> r.entry().content()).toList());
+        assertEquals(1, engine.completedPages());
     }
-    @Test void repeatedShiftsStopAfterThreeFullRestarts() {
+    @Test void changedResultsKeepConfirmedPageAndStopWhenOverlapIsMissing() {
         var sink = new RecoveryTest.Sink();
         var engine = new CaptureEngine(LookupCommand.parse(QUERY).orElseThrow(), smart().settings(), sink, "server", 1000);
-        long now = 1000;
-        for (int attempt = 0; attempt < 4; attempt++) {
-            page(engine, 1, 2, now, sign(20, "old"));
-            engine.tick(now + 1500);
-            page(engine, 2, 2, now + 1600, sign(21, "new"));
-            if (attempt < 3) {
-                assertTrue(engine.active());
-                engine.tick(now + 5600); engine.tick(now + 5850);
-                assertEquals(QUERY, sink.sent.getLast());
-                now += 6000;
-            }
-        }
+        page(engine, 1, 2, 1000, sign(20, "old"));
+        engine.tick(2500); page(engine, 2, 2, 2600, sign(21, "new"));
+        engine.tick(6600); engine.tick(6850);
+        page(engine, 1, 1, 6900, sign(22, "newer"));
         assertEquals(CaptureEngine.Outcome.MISMATCH, sink.result.outcome());
-        assertEquals(3, sink.sent.stream().filter(QUERY::equals).count());
+        assertEquals(1, engine.completedPages());
+        assertEquals(1, sink.sent.stream().filter(QUERY::equals).count());
+    }
+    @Test void shiftRetryBudgetResetsOnlyAfterConfiguredConfirmedPages() throws Exception {
+        var config = smart(); config.delayMs = 750; config.smartStablePages = 5; config.smartShiftRetries = 3;
+        var attempts = CaptureEngine.class.getDeclaredField("smartShiftAttempts");
+        attempts.setAccessible(true);
+        for (int stable : List.of(4, 5)) {
+            var sink = new RecoveryTest.Sink();
+            var engine = new CaptureEngine(LookupCommand.parse(QUERY).orElseThrow(), config.settings(), sink,
+                    "server", 1000);
+            engine.configureSmartStablePages(config.smartStablePages);
+            engine.configureSmartShiftRetries(config.smartShiftRetries);
+            attempts.setInt(engine, 3); // Three previous shifts in the same progress window.
+            for (int n = 1; n <= stable; n++) {
+                long now = 1000L * n;
+                if (n > 1) engine.tick(now);
+                page(engine, n, 50, now, sign(59 - n, "saved " + n));
+            }
+            long shiftedAt = 1000L * (stable + 1);
+            engine.tick(shiftedAt);
+            page(engine, stable + 1, 50, shiftedAt, sign(59, "newer"));
+            if (stable == 4) assertEquals(CaptureEngine.Outcome.MISMATCH, sink.result.outcome());
+            else { assertTrue(engine.active()); assertNotNull(engine.inspectionCountdown()); }
+        }
+        assertEquals(20, new Gson().fromJson("{}", Config.class).smartStablePages);
+        config.save(temp.resolve("stable-config.json"));
+        assertEquals(5, Config.load(temp.resolve("stable-config.json")).smartStablePages);
+    }
+    @Test void smartShiftRetryLimitDefaultsToFiveAndCanBeChanged() throws Exception {
+        assertEquals(5, new Gson().fromJson("{}", Config.class).smartShiftRetries);
+        var config = smart(); config.smartShiftRetries = 10;
+        config.save(temp.resolve("retries-config.json"));
+        assertEquals(10, Config.load(temp.resolve("retries-config.json")).smartShiftRetries);
+        config.smartShiftRetries = 0; config.normalize(); assertEquals(5, config.smartShiftRetries);
+        config.smartShiftRetries = 11; config.normalize(); assertEquals(5, config.smartShiftRetries);
+
+        var attempts = CaptureEngine.class.getDeclaredField("smartShiftAttempts");
+        attempts.setAccessible(true);
+        for (int configured : List.of(1, 5, 10)) {
+            var sink = new RecoveryTest.Sink();
+            var engine = new CaptureEngine(LookupCommand.parse(QUERY).orElseThrow(), smart().settings(), sink, "server", 1000);
+            engine.configureSmartShiftRetries(configured);
+            attempts.setInt(engine, configured - 1);
+            page(engine, 1, 3, 1000, sign(20, "old"));
+            engine.tick(2500); page(engine, 2, 3, 2600, sign(21, "shifted"));
+            assertTrue(engine.active(), "The final configured retry should be allowed");
+            assertEquals(configured, attempts.getInt(engine));
+        }
+        assertThrows(IllegalArgumentException.class, () -> new CaptureEngine(LookupCommand.parse(QUERY).orElseThrow(), smart().settings(), new RecoveryTest.Sink(), "server", 1).configureSmartShiftRetries(0));
     }
     @Test void timestampValidationStillRejectsInvalidDatesAndChangedZones() {
         var order = new SmartCsvOrder();
@@ -110,18 +143,20 @@ class SmartCsvTest {
         task.csvSettings.csvSmart = true;
         assertTrue(task.copy().effective(new Config()).smartCsvEnabled());
     }
-    @Test void smartRecoveryDoesNotNeedOldPagesAndDropsEntriesNoLongerReturned() throws Exception {
+    @Test void smartRecoveryLoadsSavedPagesAndStopsIfOverlapCannotBeVerified() throws Exception {
         Path exports = Files.createDirectories(temp.resolve("exports")); Files.createDirectories(exports.resolve("run"));
         var store = new RecoveryStore(temp.resolve("recovery.json"), exports);
         var c = new RecoveryStore.Capture("run", QUERY, 1, 185, 200, smart());
+        for (int number = 1; number < 185; number++)
+            store.writePage(c, new CaptureEngine.Page(number, true, List.of(sign(20, "saved " + number))));
         store.save(new RecoveryStore.State("server", c, null, ""));
-        assertTrue(store.pages(store.load().capture()).isEmpty());
+        assertEquals(184, store.pages(store.load().capture()).size());
         var sink = new RecoveryTest.Sink();
         var engine = CaptureEngine.resume(LookupCommand.parse(QUERY).orElseThrow(), c.config().settings(), sink,
-                "server", 1000, 1, 185, 200, List.of());
+                "server", 1000, 1, 185, 200, store.pages(c));
         page(engine, 1, 1, 1000, sign(20, "only current event"));
-        assertEquals(1, Report.rows(sink.result).size());
-        assertEquals(CaptureEngine.Outcome.COMPLETE, sink.result.outcome());
+        assertEquals(CaptureEngine.Outcome.MISMATCH, sink.result.outcome());
+        assertEquals(184, engine.completedPages());
     }
     @Test void cleanupPreservesPendingRecoveryAndOnlyDeletesPageFilesAfterTransition() throws Exception {
         Path exports = Files.createDirectories(temp.resolve("exports"));
@@ -152,7 +187,7 @@ class SmartCsvTest {
         try (var files = new SessionFiles(dir, Language.SPANISH, c)) { files.begin(QUERY, "server", 1); files.finish(sink.result); }
         assertTrue(Files.exists(dir.resolve("registros_2.csv")));
         var second = new RecoveryTest.Sink();
-        var refreshed = CaptureEngine.resume(LookupCommand.parse(QUERY).orElseThrow(), c.settings(), second, "server", 2000, 1, 2, 2, List.of());
+        var refreshed = new CaptureEngine(LookupCommand.parse(QUERY).orElseThrow(), c.settings(), second, "server", 2000);
         page(refreshed, 1, 1, 2000, sign(20, "one"));
         try (var files = new SessionFiles(dir, Language.SPANISH, c)) { files.resume(1); files.finish(second.result); }
         assertTrue(Files.exists(dir.resolve("registros.csv")));

@@ -1,3 +1,20 @@
+## 1.7.6 — Configurable Smart CSV retries / Reintentos configurables de CSV inteligente
+
+- Set the shifted-result retry limit in Settings → Recovery (1–10, default 5, blank 5). Existing configurations inherit 5.
+- Keep the stable-page reset threshold independent (5–5000, default 20). Show the configured retry limit in recovery notices and partial-result messages.
+
+## 1.7.5 — Stable recovery and named folders / Reanudación estable y carpetas con nombre
+
+- Reset Smart CSV's three-shift retry counter after a configurable number of newly confirmed pages without another shift. The Recovery menu accepts 5–5000, defaulting to 20; existing configs inherit that default.
+- Name new Task Queue Excel folders after the workbook when a name is supplied. Reserve numbered folders on collisions, keep the workbook filename, and preserve existing recovery paths.
+- Keep the generated queue folder name when the workbook name is blank. Update bilingual tooltips and guides.
+
+## 1.7.4 — Smart overlap recovery / Reanudación por puntos de unión
+
+- Preserve confirmed pages after reconnecting or detecting shifted CoreProtect results. Read the query start for new entries, find up to five matching entries with at least three distinct events near the saved end, then continue without replaying the middle pages.
+- Match using server timestamps and stable event content instead of relative time. Rebuild the CSV from durable pages after inserting new front entries; retain partial data if either overlap cannot be verified.
+- Keep this behavior for individual captures and Task Queue, including Excel mode. Document bounded searches, logical page numbers, and the absence of a guaranteed fixed server snapshot.
+
 ## 1.7.3 — Timing safeguards / Protección de tiempos
 
 - Quarantine responses after cancelling a live capture: wait at least its request timeout and extend the hold when late CoreProtect messages arrive before starting the next queued task.
@@ -131,3 +148,4 @@
 **1.0.0**
 
 - Initial client-only pagination, transcript, summary, basic CSV, query history and menu.
+

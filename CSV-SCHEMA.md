@@ -1,4 +1,4 @@
-**CoreTrace 1.7.3 — CSV schema 2**
+**CoreTrace 1.7.6 — CSV schema 2**
 
 Queue Excel mode is an optional `.xlsx` projection of these CSV exports. Each task keeps its selected columns in a separate sheet; all of that task's CSV parts are read in order with one header. The CSV schema and recovery page format are unchanged. See the English or Spanish README for workbook naming, row limits, recovery and cancellation behavior.
 
@@ -10,7 +10,7 @@ Optional **Automatic columns (Excel)** (off by default) inserts `sep=,` followed
 
 | Column | Meaning |
 | --- | --- |
-| `page_requested` | Page requested by the client. |
+| `page_requested` | Logical page in the saved capture. After Smart CSV joins new front entries with saved pages, this can differ from the current server page number. |
 | `page_confirmed` | Whether a matching pagination footer confirmed the page. `false` for pending or inferred pages. |
 | `query_action` | Original `a:` or `action:` parameter, when present. |
 | `event_type` | `block`, `session`, `chat`, `command`, `click`, `container`, `item`, `inventory`, `kill`, `sign`, `username`, `message` or `unknown`. |

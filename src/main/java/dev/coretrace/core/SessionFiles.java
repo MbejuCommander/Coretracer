@@ -58,6 +58,16 @@ public final class SessionFiles implements AutoCloseable {
         command = query; firstPage = first; writtenPages = 0; part = 0; pagesInPart = 0; lastCsvPath = null;
         for (int n = first; n < resumePage; n++) appendPage(PageHistory.read(directory, n));
     }
+    /** Publish the new prefix before rebuilding the CSV from the durable page journal. */
+    public void replaceFirst(CaptureEngine.Page page, String query, int resumePage) throws IOException {
+        replaceFirst(page, query, resumePage, java.util.List.of());
+    }
+    public void replaceFirst(CaptureEngine.Page page, String query, int resumePage,
+                             java.util.List<MessageData> newEntries) throws IOException {
+        writeAtomic(directory.resolve(".recovery-page-" + page.number() + ".json"), new GsonBuilder().create().toJson(page));
+        restart(query, page.number(), resumePage);
+        for (MessageData message : newEntries) line(page.number(), message);
+    }
     public SessionFiles(Path directory) { this(directory, Language.SPANISH, new Config()); }
     public SessionFiles(Path directory, Language language) { this(directory, language, new Config()); }
     public SessionFiles(Path directory, Language language, Config config) {
@@ -74,7 +84,7 @@ public final class SessionFiles implements AutoCloseable {
         this.command = command; this.firstPage = LookupCommand.parse(command).orElseThrow().firstPage();
         Files.createDirectories(directory);
         log = Files.newBufferedWriter(directory.resolve("transcript.log"), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
-        log.write(tr("log.start", "1.7.3+26.3") + "\n");
+        log.write(tr("log.start", "1.7.6+26.3") + "\n");
         log.write(tr("log.metadata", command, MessageData.clean(server), Instant.ofEpochMilli(started), language.nativeName()) + "\n\n");
         log.flush();
     }

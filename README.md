@@ -1,4 +1,20 @@
-**CoreTrace 1.7.3 — Minecraft Java 26.3 · Fabric · Client only**
+**CoreTrace 1.7.6 — Minecraft Java 26.3 · Fabric · Client only**
+
+### Configurable Smart CSV retries (1.7.6)
+
+In **Settings → Recovery**, **Smart CSV retries** accepts **1–10** shifted-result retries; blank uses **5**. If the limit is reached before enough stable pages are confirmed, the capture ends as a partial result and keeps its data for review. Accidental inspection recovery has a separate limit. Notices show the selected retry limit. This also applies to Task Queue captures through their effective settings.
+
+### Stable recovery and named folders (1.7.5)
+
+In **Settings → Recovery**, **Stable pages** accepts 5–5000 pages; blank uses **20**. The Smart CSV retry limit is configured separately. After an interruption, it counts newly confirmed pages; reaching the chosen number without another shift resets the retry counter. For example, after a problem on page 325, reaching page 345 without another shift lets CoreTrace recover a later change without exhausting the earlier budget. Accidental inspection recovery keeps its separate five-page rule. If the result overlap cannot be verified, the capture remains partial.
+
+In **Task Queue → Excel mode**, the typed workbook name also names a new queue folder: `commandOctober30` creates `coretrace/exports/commandOctober30/commandOctober30.xlsx`. If that folder already exists, CoreTrace reserves `commandOctober30 (2)`, `commandOctober30 (3)`, and so on while keeping the workbook filename. Blank uses `tasks.xlsx` in an automatic `queue-<date>-<id>` folder. Saved queues resume in their original folders; existing runs are neither renamed nor overwritten.
+
+### Smart recovery without repeating hundreds of pages (1.7.4)
+
+After reconnecting or detecting shifted results, CoreTrace keeps confirmed pages. It queries the start to include new entries, then looks for up to five matching entries, including at least three distinct ones near the last saved page. Matching uses the server timestamp and stable content because relative text such as “1 minute ago” changes over time. The overlapping area is replaced, and capture continues near the saved end rather than rereading every page between. For example, if page 322 was saved and two new records shift the results, CoreTrace looks for the join near pages 322–323 and continues there.
+
+The first search is limited to 12 pages and the tail search to 14. If a reliable match is not found, it retains the CSV and recovery data as a partial result and warns instead of automatically restarting the entire query. Three distinct entries are required, so very short queries can end as partial. CoreProtect provides neither unique event IDs nor a fixed server snapshot: unseen changes in middle pages and identical events within the same second cannot always be resolved. A saved page can contain more rows than a physical server page after front entries are inserted; `page_requested` in the CSV then represents a logical page in the recovered file.
 
 ### Timing limits and safe task cancellation (1.7.3)
 
@@ -8,7 +24,7 @@ After **Cancel current task** during a capture, CoreTrace waits at least that qu
 
 ### Smart CSV page-shift recovery (1.7.2)
 
-If a newer record appears on a later page, Smart CSV detects that results shifted during the query. It discards the unfinished page and, after the recovery countdown (4000 ms by default) and a quiet period without CoreProtect responses, repeats the original command from page 1. It replaces this capture's pages rather than joining two different result sets. This also works in Task Queue, which does not advance while capture recovery is pending. Three full-query retries are allowed over the whole capture; continued changes produce a partial result and preserve recovery. A changed timezone or unreadable timestamp still stops capture without a retry. It cannot guarantee a snapshot of a server that keeps adding records.
+If a newer record appears on a later page, Smart CSV detects that results shifted during the query. It discards the unfinished page and, after the recovery countdown (4000 ms by default) and a quiet period without CoreProtect responses, repeats the original command to find the joins described above. This also works in Task Queue, which does not advance while capture recovery is pending. Up to the configured number of retries are allowed before the configured number of stable pages is reached; then the counter resets. A changed timezone or unreadable timestamp still stops capture without a retry. It cannot guarantee a snapshot of a server that keeps adding records.
 
 ### Pause the queue or cancel only the current task (1.7.2)
 
@@ -18,7 +34,7 @@ In **Task Queue**, **Pause queue** becomes **Resume queue** when pressed. A resp
 
 ### Queue Excel mode (1.7.1)
 
-**Task Queue → Excel mode (.xlsx)** is **off by default**. Enable it before starting a queue to show **Excel workbook name**. Blank creates `tasks.xlsx`; for example, `julio` or `julio.xlsx` creates `julio.xlsx`. Each run gets its own `coretrace/exports/queue-<date>-<id>/` directory, so repeated names do not overwrite earlier runs. The workbook has one sheet per task. Hover over the button for an explanation. **Open last export** opens the workbook folder. During the queue, individual captures keep their CSVs, summary, JSON and transcript.
+**Task Queue → Excel mode (.xlsx)** is **off by default**. Enable it before starting a queue to show **Excel workbook name**. Blank creates `tasks.xlsx` in an automatic folder; for example, `julio` or `julio.xlsx` creates `coretrace/exports/julio/julio.xlsx`. If the folder already exists, `(2)`, `(3)`, and so on are added to the folder name without changing the workbook filename. The workbook has one sheet per task. Hover over the button for an explanation. **Open last export** opens the workbook folder. During the queue, individual captures keep their CSVs, summary, JSON and transcript.
 
 Each sheet uses the task's CSV name, or `Task N` when blank, and respects its selected columns. Sheet names are adapted to Excel (31 characters maximum, allowed characters and unique names). All CSV parts of a task are combined in its sheet with a single header. Coordinates, amounts and requested pages are numeric cells; server timestamps and other text retain their representation. The header row is frozen and has filters. Tasks exceeding 1,048,575 records continue in another sheet with headers: Excel's row limit includes the header. CSV page splitting still applies to the CSVs and does not determine workbook sheets.
 
@@ -52,15 +68,15 @@ The mod discards the current page, retains complete pages and posts a red notice
 
 `entity.villager.no` plays at interruption, `entity.experience_orb.pickup` accompanies the crosshair countdown, and `entity.villager.yes` plays when reconstruction starts. Reconnection recovery also uses experience sounds and the villager sound at countdown completion. The default sequence displays 4, 3, 2, 1, 0; severe client lag can skip visual steps.
 
-With Smart CSV off, the original command is repeated, bootstrap page 1 is ignored and the first pending page is requested: incomplete page 185 is read again; a fully saved page 185 continues at 186. A changed total during reconstruction stops recovery before mixing queries. With Smart CSV on, the query refreshes from page 1. Recovery permits **3 consecutive attempts**, reset after 5 stable pages. The queue stays on its current task and runs no subsequent custom commands until export succeeds. Cancelling or disconnecting stops the countdown. Per-task settings can override Recover inspection and its delay.
+With Smart CSV off, the original command is repeated, bootstrap page 1 is ignored and the first pending page is requested: incomplete page 185 is read again; a fully saved page 185 continues at 186. A changed total during reconstruction stops recovery before mixing queries. With Smart CSV on, the start and last saved overlap are compared. Normal inspection recovery permits **3 consecutive attempts**, reset after 5 stable pages. The queue stays on its current task and runs no subsequent custom commands until export succeeds. Cancelling or disconnecting stops the countdown. Per-task settings can override Recover inspection and its delay.
 
 ### Smart CSV and recovery cleanup (1.6.0)
 
 **Settings → CSV export → Smart CSV** defaults to on for new configurations. Existing saved preferences are respected. It is also available in each task's CSV settings and is preserved by copies and profiles. While enabled, `server_timestamp` is required and cannot be deselected; turn off Smart CSV first to remove it. **Clear all** keeps that column. Enabling the mode adds it automatically. Disabling it permits page-number recovery, with a risk of missing or duplicating records if results changed.
 
-When resuming a capture in this mode, CoreTrace rereads **every page from page 1** in the same folder and replaces the previous dataset with the current response. For example, four new signs appear on the first page and earlier entries appear on the pages now assigned by the server. Events no longer within `t:7d` are excluded. This takes as long as a complete query; it does not jump directly to the former page 185. Already completed queue tasks are not repeated.
+When resuming a capture in this mode, CoreTrace reads from page 1 until it recognizes saved entries, retains the middle pages, and locates the old end near its former position. New entries at the front are included without rereading hundreds of pages. Old entries that have fallen outside the `t:7d` range may remain in saved pages: recovery preserves a historical file rather than reconstructing an exact snapshot of the current range. Already completed queue tasks are not repeated.
 
-The mod automatically captures the tooltip needed for `server_timestamp` and checks for valid timestamps from newest to oldest, including across page boundaries. Equal timestamps are allowed and identical events remain separate records. A missing valid timestamp or changed timezone stops capture with a partial result; newer records on a later page trigger the full-query retry described above. Server-confirmed ordering and pagination are preserved without artificially sorting the CSV. This check does not provide a CoreProtect snapshot: changes during capture that preserve the count and ordering may still go undetected.
+The mod automatically captures the tooltip needed for `server_timestamp` and checks for valid timestamps from newest to oldest, including across page boundaries. Equal timestamps are allowed and identical events remain separate records. A missing valid timestamp or changed timezone stops capture with a partial result; newer records on a later page trigger the overlap search described above. Entries remain in order without artificially sorting the CSV. Page numbers in a joined file may be logical and differ from current server pagination.
 
 The option is frozen when starting a capture or queue, like other CSV settings. Changing it does not alter an existing pending run's saved settings. With the option off, normal recovery resumes from the interrupted page.
 
@@ -132,7 +148,7 @@ Install:
 
 1. Use a Minecraft Java **26.3** instance with **Fabric Loader 0.19.5 or later**. The game uses Java 25; the official launcher normally manages its runtime. Select Java 25 in other launchers.
 2. Install [Fabric API for 26.3](https://modrinth.com/mod/fabric-api/versions?g=26.3), version **0.161.0+26.3** or a later compatible version.
-3. Put `coretrace-1.7.0+26.3.jar` in the instance's `mods` folder. Remove the old CoreTrace JAR if upgrading. Your preferences and query history are retained.
+3. Put `coretrace-1.7.6+26.3.jar` in the instance's `mods` folder. Remove the old CoreTrace JAR if upgrading. Your preferences and query history are retained.
 4. Optionally install a [Mod Menu version compatible with 26.3](https://modrinth.com/mod/modmenu). F8 and `/coretrace` also open the menu without it.
 
 To select English, open **F8 → Settings → Language** and click the language button until it shows **Language: English**. Use **Settings → Language** to switch back to Español. The choice persists independently of Minecraft's language. Menus and new notifications change immediately; the report language is fixed when each capture starts. Existing chat messages and previously saved files are not rewritten.
@@ -260,7 +276,7 @@ The project includes MIT-licensed source, these instructions and synthetic examp
 
 Build with **JDK 25** and the included wrapper: `./gradlew build` on Linux/macOS or `gradlew.bat build` on Windows. The standard configuration uses Loom 1.17.20 and Gradle 9.5.1. Alternatively run `python build-portable.py` using Python 3.10+ and JDK 25+ (`JAVA_HOME`). This alternative verifies published dependency hashes and compiles against the actual unobfuscated Minecraft 26.3 classes, Fabric and optional Mod Menu APIs. It also runs the tests. Install the ordinary JAR from `build/libs`, not a sources JAR.
 
-Version 1.7.3 built successfully with JDK 25.0.4 and Gradle (`gradlew.bat test build --offline`) and passed **180 automated tests**, with no failures or errors. All 67 JAR classes were verified as Java 25 bytecode (major version 69). In version 1.7.1 a generated workbook was opened in Microsoft Excel 16.0 to verify sheets, numeric coordinates, rows, quotes, line breaks and preservation of text that could resemble formulas. Excel tests also cover the custom filename across recovery, safe removal of task folders after the last task and command, cancellation with partial results, write failures, backup retention, different columns and sheet splitting. **The game UI and a live Minecraft/CoreProtect session remain untested.** Coverage still includes a simulated 5001-page capture with 105021 records and 115023 messages, export before completion, crash recovery and inspection recovery with the queue held on its current task.
+Version 1.7.6 built successfully with JDK 25.0.4 and Gradle (`gradlew.bat test build --offline`) and passed **190 automated tests**, with no failures or errors. All 70 JAR classes were verified as Java 25 bytecode (major version 69). In version 1.7.1 a generated workbook was opened in Microsoft Excel 16.0 to verify sheets, numeric coordinates, rows, quotes, line breaks and preservation of text that could resemble formulas. Excel tests also cover the custom filename across recovery, safe removal of task folders after the last task and command, cancellation with partial results, write failures, backup retention, different columns and sheet splitting. **The game UI and a live Minecraft/CoreProtect session remain untested.** Coverage still includes a simulated 5001-page capture with 105021 records and 115023 messages, export before completion, crash recovery and inspection recovery with the queue held on its current task.
 
 For your first server check, use a small known lookup and compare its last page and transcript with the chat output. The Spanish [README](README.md) contains the equivalent instructions in Spanish.
 

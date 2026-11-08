@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Component;
 
 final class SettingsScreen extends BaseScreen {
     private final String[] values;
-    private final EditBox[] fields = new EditBox[7];
+    private final EditBox[] fields = new EditBox[9];
     private int tab;
     private final dev.coretrace.core.Config target;
     private final Runnable persist;
@@ -22,7 +22,7 @@ final class SettingsScreen extends BaseScreen {
         this.target = target; this.mode = mode; this.persist = persist; this.tab = mode == 1 ? 1 : 0;
         target.normalize();
         var c = target;
-        values = new String[]{"" + c.delayMs, "" + c.timeoutMs, "" + c.settleMs, "" + c.maxPages, "" + c.csvPagesPerFile, c.csvFileName, "" + c.autoResumeDelayMs};
+        values = new String[]{"" + c.delayMs, "" + c.timeoutMs, "" + c.settleMs, "" + c.maxPages, "" + c.csvPagesPerFile, c.csvFileName, "" + c.autoResumeDelayMs, "" + c.smartStablePages, "" + c.smartShiftRetries};
     }
     private void rememberFields() {
         for (int i = 0; i < fields.length; i++) if (fields[i] != null) values[i] = fields[i].getValue();
@@ -84,13 +84,15 @@ final class SettingsScreen extends BaseScreen {
             smart.setTooltip(Tooltip.create(Component.literal(tr(c.csvColumns.contains("server_timestamp") ? "smart.hint" : "smart.timestamp_warning"))));
 
         } else if (tab == 3) {
-            button(tr("recovery.enabled", yes(c.autoResume)), left, 67, half,
-                    () -> { c.autoResume = !c.autoResume; persist.run(); rebuildWidgets(); }).active = mode == 0;
+            var autoResume = button(tr("recovery.enabled", yes(c.autoResume)), left, 67, half,
+                    () -> { c.autoResume = !c.autoResume; persist.run(); rebuildWidgets(); });
+            autoResume.active = mode == 0;
+            autoResume.setTooltip(Tooltip.create(Component.literal(tr("recovery.same_server"))));
             button(tr("inspect.enabled", yes(c.inspectRecovery)), left + half + 6, 67, panelWidth - half - 6,
                     () -> { c.inspectRecovery = !c.inspectRecovery; persist.run(); rebuildWidgets(); })
                     .setTooltip(Tooltip.create(Component.literal(tr("inspect.hint"))));
-            fields[6] = field(tr("recovery.delay"), values[6], left, 113, panelWidth - 24, 19);
-            var delayWarning = addRenderableWidget(new DelayWarningButton(left + panelWidth - 20, 113, tr("inspect.delay_warning")));
+            fields[6] = field(tr("recovery.delay"), values[6], left, 113, third - 24, 19);
+            var delayWarning = addRenderableWidget(new DelayWarningButton(left + third - 20, 113, tr("inspect.delay_warning")));
             fields[6].setResponder(value -> {
                 try { delayWarning.visible = dev.coretrace.core.ResumeCountdown.parseDelay(value) < 4000; }
                 catch (IllegalArgumentException e) { delayWarning.visible = false; }
@@ -98,6 +100,12 @@ final class SettingsScreen extends BaseScreen {
             try { delayWarning.visible = dev.coretrace.core.ResumeCountdown.parseDelay(values[6]) < 4000; }
             catch (IllegalArgumentException e) { delayWarning.visible = false; }
             fields[6].setHint(Component.literal("4000"));
+            fields[7] = field(tr("recovery.stable_pages"), values[7], left + third + 6, 113, third, 4);
+            fields[7].setHint(Component.literal("20"));
+            fields[7].setTooltip(Tooltip.create(Component.literal(tr("recovery.stable_pages_hint"))));
+            fields[8] = field(tr("recovery.smart_retries"), values[8], left + 2 * (third + 6), 113, panelWidth - 2 * (third + 6), 2);
+            fields[8].setHint(Component.literal("5"));
+            fields[8].setTooltip(Tooltip.create(Component.literal(tr("recovery.smart_retries_hint"))));
             if (mode == 0) button(tr("reconnect.title"), left, 158, half, () -> minecraft.gui.setScreen(new ReconnectSettingsScreen(this)));
             if (mode == 0) button(tr("recovery.discard"), left + half + 6, 158, panelWidth - half - 6, () -> { mod.discardRecovery(); rebuildWidgets(); })
                     .active = mod.hasRecovery() && !mod.active() && !mod.queueActive();
@@ -127,6 +135,20 @@ final class SettingsScreen extends BaseScreen {
             long resumeDelay;
             try { resumeDelay = dev.coretrace.core.ResumeCountdown.parseDelay(values[6]); }
             catch (IllegalArgumentException e) { error = "recovery.invalid_delay"; tab = 3; rebuildWidgets(); return false; }
+            int stablePages;
+            try {
+                stablePages = values[7].isBlank() ? 20 : Integer.parseInt(values[7].strip());
+                if (stablePages < 5 || stablePages > 5000) throw new IllegalArgumentException();
+            } catch (IllegalArgumentException e) {
+                error = "recovery.invalid_stable_pages"; tab = 3; rebuildWidgets(); return false;
+            }
+            int smartRetries;
+            try {
+                smartRetries = values[8].isBlank() ? 5 : Integer.parseInt(values[8].strip());
+                if (smartRetries < 1 || smartRetries > 10) throw new IllegalArgumentException();
+            } catch (IllegalArgumentException e) {
+                error = "recovery.invalid_retries"; tab = 3; rebuildWidgets(); return false;
+            }
             int d = Integer.parseInt(values[0]), t = Integer.parseInt(values[1]);
             int s = Integer.parseInt(values[2]), m = Integer.parseInt(values[3]), cp = Integer.parseInt(values[4]);
             if (d < 750 || d > 30000) return invalidCapture("ui.settings.delay_invalid");
@@ -136,13 +158,13 @@ final class SettingsScreen extends BaseScreen {
                 throw new IllegalArgumentException();
             var c = target;
             c.delayMs = d; c.timeoutMs = t; c.settleMs = s; c.maxPages = m; c.csvPagesPerFile = cp;
-            c.csvFileName = csvName; c.autoResumeDelayMs = resumeDelay;
+            c.csvFileName = csvName; c.autoResumeDelayMs = resumeDelay; c.smartStablePages = stablePages; c.smartShiftRetries = smartRetries;
             persist.run(); return true;
         } catch (IllegalArgumentException e) { error = "ui.settings.invalid"; return false; }
     }
     private boolean invalidCapture(String key) { error = key; tab = 0; rebuildWidgets(); return false; }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
-        super.extractRenderState(g, mx, my, delta); int half = (panelWidth - 6) / 2;
+        super.extractRenderState(g, mx, my, delta); int half = (panelWidth - 6) / 2, third = (panelWidth - 12) / 3;
         if (tab == 0) {
             label(g, tr("ui.settings.delay"), left, 110, half, 0xFFB8C9D9);
             label(g, tr("ui.settings.timeout"), left + half + 6, 110, half, 0xFFB8C9D9);
@@ -157,7 +179,9 @@ final class SettingsScreen extends BaseScreen {
                 label(g, tr("ui.settings.csv_name_preview", filename), left, 185, panelWidth, 0xFF8DA9BA);
             } catch (IllegalArgumentException ignored) { /* Keep editing incomplete values. */ }
         } else if (tab == 3) {
-            label(g, tr("recovery.delay"), left, 101, panelWidth, 0xFFB8C9D9);
+            label(g, tr("recovery.delay"), left, 101, third, 0xFFB8C9D9);
+            label(g, tr("recovery.stable_pages"), left + third + 6, 101, third, 0xFFB8C9D9);
+            label(g, tr("recovery.smart_retries"), left + 2 * (third + 6), 101, panelWidth - 2 * (third + 6), 0xFFB8C9D9);
             label(g, tr("recovery.hint"), left, 140, panelWidth, 0xFFB8C9D9);
             label(g, tr("recovery.same_server"), left, 184, panelWidth, 0xFF8DA9BA);
         } else {

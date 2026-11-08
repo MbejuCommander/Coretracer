@@ -36,6 +36,13 @@ public final class PageHistory extends AbstractList<CaptureEngine.Page> {
         return true;
     }
     @Override public synchronized void clear() { count = 0; recent.clear(); }
+    @Override public synchronized CaptureEngine.Page set(int index, CaptureEngine.Page page) {
+        Objects.checkIndex(index, count);
+        if (page.number() != first + index) throw new IllegalArgumentException("Wrong replacement page");
+        CaptureEngine.Page previous = get(index);
+        recent.put(index, page);
+        return previous;
+    }
     public synchronized List<CaptureEngine.Page> freeze() { return new View(directory, first, count, Map.copyOf(recent)); }
     public synchronized void restore(List<CaptureEngine.Page> saved) {
         clear();

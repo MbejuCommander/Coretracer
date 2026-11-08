@@ -44,6 +44,12 @@ public final class QueueExcel {
         }
         return CsvFileNames.normalize(stem);
     }
+    /** Reserve a readable run folder while keeping the workbook name fixed across collisions. */
+    public static QueueExcel createRun(Path exports, String name, String fallback) throws IOException {
+        String stem = normalizeName(name);
+        Path directory = CsvFileNames.reserveDirectory(exports, stem, fallback);
+        return new QueueExcel(exports, directory.getFileName().toString(), stem);
+    }
     public static Path safeDirectory(Path root, String name) throws IOException {
         Path base = root.toAbsolutePath().normalize();
         if (name == null || name.isBlank()) throw new IOException("Missing workbook directory");

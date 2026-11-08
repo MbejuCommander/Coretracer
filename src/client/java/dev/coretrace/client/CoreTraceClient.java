@@ -210,7 +210,7 @@ public final class CoreTraceClient implements ClientModInitializer {
                 Component.literal("[CoreTrace] " + tr("reconnect.hint")).withStyle(net.minecraft.ChatFormatting.GREEN));
         String server = serverKey();
         RecoveryStore.Capture savedResume = resumeStarting; resumeStarting = null;
-        RecoveryStore.Capture resumed = savedResume != null && runConfig.smartCsvEnabled() ? savedResume.at(1, 0) : savedResume;
+        RecoveryStore.Capture resumed = savedResume;
         if (resumed != null && runConfig.smartCsvEnabled()) noticeKey("smart.refresh");
         Path path;
         try { path = resumed != null ? recoveryStore.directory(resumed) : CsvFileNames.reserveDirectory(exports, runConfig.csvFileName,
@@ -248,9 +248,14 @@ public final class CoreTraceClient implements ClientModInitializer {
             @Override public boolean ready() { return !ctx.failed && ctx.work.get() < 4; }
             @Override public void line(int page, MessageData m) { /* Written as a bounded page batch. */ }
             @Override public void restartExport() {
-                checkpointCapture(1, 0, null);
-                queue(ctx, () -> ctx.files.restart(command.command(), command.firstPage(), command.firstPage()));
+                checkpointCapture(engine.nextRecoveryPage(), engine.totalPages(), null);
+                queue(ctx, () -> ctx.files.restart(command.command(), command.firstPage(), engine.nextRecoveryPage()));
                 noticeKey("smart.refresh");
+            }
+            @Override public void replaceFirst(CaptureEngine.Page page, int nextPage,
+                                               java.util.List<MessageData> newEntries) {
+                queue(ctx, () -> ctx.files.replaceFirst(page, command.command(), nextPage, newEntries));
+                checkpointCapture(nextPage, engine.totalPages(), null);
             }
             @Override public void recovering(int page) {
                 checkpointCapture(page, engine.totalPages(), null);
@@ -263,7 +268,7 @@ public final class CoreTraceClient implements ClientModInitializer {
                 checkpointCapture(page, engine.totalPages(), null);
                 playConfiguredSound("minecraft:entity.villager.no");
                 playConfiguredSound("minecraft:entity.experience_orb.pickup");
-                mc.gui.hud.getChat().addClientSystemMessage(Component.literal("[CoreTrace] " + tr("smart.shift_warning", page, runConfig.autoResumeDelayMs))
+                mc.gui.hud.getChat().addClientSystemMessage(Component.literal("[CoreTrace] " + tr("smart.shift_warning", page, runConfig.autoResumeDelayMs, runConfig.smartShiftRetries, runConfig.smartStablePages))
                         .withStyle(net.minecraft.ChatFormatting.RED));
             }
             @Override public void restarted() {
@@ -323,6 +328,8 @@ public final class CoreTraceClient implements ClientModInitializer {
                 : CaptureEngine.resume(command, settings, sink, server, started, resumed.startedAt(),
                         resumed.page(), resumed.total(), recoveredPages);
         engine.configureInspectionRecovery(runConfig.inspectRecovery, runConfig.autoResumeDelayMs);
+        engine.configureSmartStablePages(runConfig.smartStablePages);
+        engine.configureSmartShiftRetries(runConfig.smartShiftRetries);
         recoveredPages = java.util.List.of();
         config.remember(command.command()); saveConfig();
         setFeedback("status.started");
@@ -496,10 +503,9 @@ public final class CoreTraceClient implements ClientModInitializer {
                 Config effective = task.effective(config);
                 task.universalSettings = false; task.taskSettings = effective; task.csvSettings = effective.captureCopy();
             }
-            queueExcel = config.queueExcel ? new QueueExcel(exports,
-                    CsvFileNames.reserveDirectory(exports, "", "queue-" + NAME.format(Instant.ofEpochMilli(now()))
-                            + "-" + UUID.randomUUID().toString().substring(0, 8)).getFileName().toString(),
-                    config.queueExcelName) : null;
+            queueExcel = config.queueExcel ? QueueExcel.createRun(exports, config.queueExcelName,
+                    "queue-" + NAME.format(Instant.ofEpochMilli(now()))
+                            + "-" + UUID.randomUUID().toString().substring(0, 8)) : null;
             createTaskQueue(tasks, config.taskDelayMs, config.queueFinishSound, originals);
         } catch (IllegalArgumentException e) { noticeKey("queue.invalid"); return false; }
         catch (IOException e) { LOGGER.error("Cannot create Excel queue", e); noticeKey("notice.save_failed"); return false; }

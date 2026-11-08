@@ -26,6 +26,8 @@ public final class Config {
     public boolean autoResume = true;
     public boolean inspectRecovery = true;
     public long autoResumeDelayMs = 4000;
+    public int smartStablePages = 20;
+    public int smartShiftRetries = 5;
     public List<String> csvColumns = new ArrayList<>(Report.CSV_COLUMNS);
     public int csvPagesPerFile = 0;
     public boolean csvExcelAutoColumns = false;
@@ -66,6 +68,8 @@ public final class Config {
         if (reconnectDelayMs < 0) reconnectDelayMs = 5000;
         if (reconnectAttempts < 1) reconnectAttempts = 3;
         if (autoResumeDelayMs < 0) autoResumeDelayMs = 4000;
+        if (smartStablePages < 5 || smartStablePages > 5000) smartStablePages = 20;
+        if (smartShiftRetries < 1 || smartShiftRetries > 10) smartShiftRetries = 5;
         language = Language.fromCode(language).code();
         if (tasks == null) tasks = new ArrayList<>();
         tasks.removeIf(java.util.Objects::isNull);
