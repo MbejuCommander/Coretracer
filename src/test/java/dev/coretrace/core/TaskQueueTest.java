@@ -1,6 +1,7 @@
 package dev.coretrace.core;
 
 import java.util.*;
+import java.nio.file.*;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -11,9 +12,11 @@ class TaskQueueTest {
     private static final class Host implements TaskQueue.Host {
         final List<String> events = new ArrayList<>();
         boolean startOk = true, commandOk = true;
+        boolean checkpointOk = true;
         public boolean start(TaskDefinition t) { events.add(t.csvName); return startOk; }
         public boolean command(String c) { events.add(c); return commandOk; }
         public void finished() { events.add("done"); }
+        @Override public boolean checkpoint(TaskQueue.State state) { return checkpointOk; }
     }
     @Test void waitsForExportThenCustomDelayThenTaskDelay() {
         Host h = new Host(); TaskQueue q = new TaskQueue(List.of(task("Simply1", "/simply 2"), task("Simply2", "")), 750, h);
@@ -97,5 +100,64 @@ class TaskQueueTest {
         assertEquals(1200, TaskDefinition.delay(" 1200 "));
         for (String value : List.of("-1", "1.5", "text", "3600001", "99999999999"))
             assertThrows(IllegalArgumentException.class, () -> TaskDefinition.delay(value));
+    }
+    @Test void pausedQueueEditsOnlyPendingTasksAndRestoresEditedOrder() {
+        Host h = new Host();
+        TaskQueue q = new TaskQueue(List.of(task("current", ""), task("remove", ""), task("last", "")), 750, h);
+        q.start();
+        assertFalse(q.replacePending(List.of(task("too early", "")), 0));
+        assertTrue(q.setPaused(true, 100));
+        var pending = List.of(task("new", ""), task("last", ""));
+        assertTrue(q.replacePending(pending, 100));
+        assertEquals(List.of("current", "new", "last"), q.snapshot(100).tasks().stream().map(t -> t.csvName).toList());
+        pending.getFirst().csvName = "changed after commit";
+        assertEquals("new", q.snapshot(100).tasks().get(1).csvName);
+        TaskQueue.State saved = q.snapshot(100);
+        Host resumedHost = new Host();
+        TaskQueue restored = new TaskQueue(saved.tasks(), saved.delay(), resumedHost);
+        restored.restore(saved, 1000);
+        assertTrue(restored.paused());
+        restored.setPaused(false, 1000);
+        restored.exported(CaptureEngine.Outcome.COMPLETE, 1000);
+        restored.tick(1750);
+        restored.exported(CaptureEngine.Outcome.COMPLETE, 1750);
+        restored.tick(2500);
+        assertEquals(List.of("current", "new", "last"), resumedHost.events);
+    }
+    @Test void pausedQueueKeepsOldTasksWhenCheckpointFails() {
+        Host h = new Host(); TaskQueue q = new TaskQueue(List.of(task("current", ""), task("next", "")), 750, h);
+        q.start(); assertTrue(q.setPaused(true, 50));
+        h.checkpointOk = false;
+        assertFalse(q.replacePending(List.of(task("replacement", "")), 50));
+        assertEquals("next", q.snapshot(50).tasks().get(1).csvName);
+        assertThrows(IllegalArgumentException.class, () -> q.replacePending(List.of(new TaskDefinition()), 50));
+        assertEquals("next", q.snapshot(50).tasks().get(1).csvName);
+    }
+    @Test void removingLastPendingTaskAfterCurrentTaskFinishesCompletesTheQueue() {
+        Host h = new Host(); TaskQueue q = new TaskQueue(List.of(task("current", ""), task("next", "")), 750, h);
+        q.start(); q.exported(CaptureEngine.Outcome.COMPLETE, 0);
+        assertTrue(q.setPaused(true, 1));
+        assertTrue(q.replacePending(List.of(), 1));
+        assertFalse(q.active());
+        assertEquals(List.of("current", "done"), h.events);
+    }
+    @Test void pendingChangesSurviveRecoveryStoreReload(@org.junit.jupiter.api.io.TempDir Path temp) throws Exception {
+        Path exports = Files.createDirectories(temp.resolve("exports"));
+        RecoveryStore store = new RecoveryStore(temp.resolve("recovery.json"), exports);
+        TaskQueue.Host host = new TaskQueue.Host() {
+            public boolean start(TaskDefinition task) { return true; }
+            public boolean command(String command) { return true; }
+            public void finished() {}
+            public boolean checkpoint(TaskQueue.State state) {
+                try { store.save(new RecoveryStore.State("example.server", null, state, "")); return true; }
+                catch (Exception e) { return false; }
+            }
+        };
+        TaskQueue queue = new TaskQueue(List.of(task("current", ""), task("old", "")), 750, host);
+        queue.start(); assertTrue(queue.setPaused(true, 100));
+        assertTrue(queue.replacePending(List.of(task("new", ""), task("more", "")), 100));
+        RecoveryStore.State restored = store.load();
+        assertTrue(restored.queue().paused());
+        assertEquals(List.of("current", "new", "more"), restored.queue().tasks().stream().map(t -> t.csvName).toList());
     }
 }

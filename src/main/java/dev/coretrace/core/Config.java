@@ -14,6 +14,13 @@ public final class Config {
     public boolean automatic = true;
     public boolean hideCapturedChat = false;
     public int delayMs = 1500;
+    public boolean smartDelay = false;
+    public int smartDelayMinimumMs = 240;
+    public int smartDelayWindowSeconds = 5;
+    public int[] smartDelayHoldSeconds = SmartDelay.defaultHoldSeconds();
+    public boolean smartDelayPerServer = false;
+    public String smartDelayKickMessage = SmartDelay.DEFAULT_REASON;
+    public boolean showEta = true;
     public int timeoutMs = 30000;
     public int settleMs = 3500;
     public int maxPages = 500;
@@ -24,6 +31,7 @@ public final class Config {
     public int reconnectAttempts = 3;
     public boolean showReconnectHint = true;
     public boolean autoResume = true;
+    public boolean resumeAcrossServers = true;
     public boolean inspectRecovery = true;
     public long autoResumeDelayMs = 4000;
     public int smartStablePages = 20;
@@ -42,6 +50,14 @@ public final class Config {
     public String queueStartSound = "";
     public String queueFinishSound = "";
     public Config copy() { return new Gson().fromJson(new Gson().toJson(this), Config.class); }
+    /** Restore preferences while retaining user-created data and export references. */
+    public Config factoryDefaults() {
+        Config saved = copy(), fresh = new Config();
+        fresh.tasks = saved.tasks; fresh.taskProfiles = saved.taskProfiles;
+        fresh.favorites = saved.favorites; fresh.recentQueries = saved.recentQueries;
+        fresh.lastExportFile = saved.lastExportFile;
+        return fresh;
+    }
     public Config captureCopy() {
         Config c = copy(); c.tasks.clear(); c.taskProfiles.clear(); return c;
     }
@@ -65,6 +81,11 @@ public final class Config {
     public List<String> recentQueries = new ArrayList<>();
     public List<String> favorites = new ArrayList<>();
     public void normalize() {
+        if (smartDelayKickMessage == null || smartDelayKickMessage.isBlank()) smartDelayKickMessage = SmartDelay.DEFAULT_REASON;
+        smartDelayKickMessage = smartDelayKickMessage.strip();
+        smartDelayWindowSeconds = Math.clamp(smartDelayWindowSeconds, 1, 300);
+        if (!SmartDelay.validHoldSeconds(smartDelayHoldSeconds)) smartDelayHoldSeconds = SmartDelay.defaultHoldSeconds();
+        smartDelayMinimumMs = Math.clamp(smartDelayMinimumMs, SmartDelay.MIN, SmartDelay.MAX);
         if (reconnectDelayMs < 0) reconnectDelayMs = 5000;
         if (reconnectAttempts < 1) reconnectAttempts = 3;
         if (autoResumeDelayMs < 0) autoResumeDelayMs = 4000;

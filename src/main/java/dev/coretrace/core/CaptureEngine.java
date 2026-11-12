@@ -26,7 +26,7 @@ public final class CaptureEngine {
         }
     }
     public record Page(int number, boolean confirmed, List<MessageData> messages) {
-        public Page { messages = List.copyOf(messages); }
+        public Page { if (!(messages instanceof PrefixJournal.Messages)) messages = List.copyOf(messages); }
     }
     public record Snapshot(String command, String server, long startedAt, long endedAt, int firstPage,
                            int totalPages, Outcome outcome, String detail, List<Page> pages,
@@ -41,10 +41,12 @@ public final class CaptureEngine {
         void finish(Snapshot snapshot);
         default List<Page> history(int firstPage) { return new ArrayList<>(); }
         default void restartExport() {}
+        default List<MessageData> prefixBuffer() { return new ArrayList<>(); }
         default void replaceFirst(Page page, int nextPage) {}
         default void replaceFirst(Page page, int nextPage, List<MessageData> newEntries) {
             replaceFirst(page, nextPage);
         }
+        default void replaceFirst(Page page, int nextPage, List<MessageData> newEntries, int offset) { replaceFirst(page, nextPage, newEntries); }
         default void recovering(int page) {}
         default void recoveringChangedResults(int page) { recovering(page); }
         default void restarted() {}
@@ -53,6 +55,10 @@ public final class CaptureEngine {
 
     private final LookupCommand command;
     private final Settings settings;
+    private java.util.function.IntSupplier delayProvider;
+    public void configureDelay(java.util.function.IntSupplier provider) { delayProvider = provider; }
+    private int delay() { return delayProvider == null ? settings.delayMs() : Math.clamp(delayProvider.getAsInt(), SmartDelay.MIN, SmartDelay.MAX); }
+    public boolean recovering() { return recreating || smartStage != SmartStage.NONE || inspectionCountdown != null; }
     private final Sink sink;
     private final String server;
     private final long started;
@@ -61,6 +67,7 @@ public final class CaptureEngine {
     private Phase phase = Phase.WAITING;
     private Outcome outcome;
     private String detailKey = "status.waiting";
+    private String diagnosticCode = "status.waiting";
     private Object[] detailArgs = new Object[0];
     private String literalDetail;
     private int expected, total;
@@ -73,8 +80,14 @@ public final class CaptureEngine {
     private enum SmartStage { NONE, PREFIX, TAIL }
     private SmartStage smartStage = SmartStage.NONE;
     private final List<MessageData> smartSearch = new ArrayList<>(), smartCurrent = new ArrayList<>();
+    private final List<Integer> smartSourcePages = new ArrayList<>();
     private int serverPage = 1, pageOffset, smartSearchPages;
     private boolean smartHeader;
+    private Page smartReplacement;
+    private List<MessageData> smartPrefix = List.of();
+    private List<MessageData> stagedPrefix;
+    private SmartCsvOrder prefixOrder = new SmartCsvOrder();
+    private boolean prefixFirstSeen;
     private boolean inspectRecoveryEnabled;
     private long inspectDelay = 4000, interactionAt = Long.MIN_VALUE, lastRecoveryResponse, zeroAt = -1;
     private int recoveryAttempts, smartShiftAttempts, stablePages;
@@ -126,8 +139,9 @@ public final class CaptureEngine {
         if (settings.smartCsv()) {
             if (!pages.isEmpty()) {
                 smartStage = SmartStage.PREFIX;
+                stagedPrefix = null; prefixOrder = new SmartCsvOrder(); prefixFirstSeen = false; smartSourcePages.clear();
                 smartSearch.clear(); smartCurrent.clear(); smartSearchPages = 0; smartHeader = false;
-                serverPage = 1; pageOffset = 0; expected = command.firstPage() + pages.size();
+                serverPage = 1; expected = command.firstPage() + pages.size();
                 total = 0;
             } else {
                 total = 0; expected = command.firstPage(); smartOrder = new SmartCsvOrder();
@@ -218,7 +232,7 @@ public final class CaptureEngine {
             commit(true);
             if (expected >= total) endKey(Outcome.COMPLETE, "reason.complete", now);
             else if (pages.size() >= settings.maxPages()) endKey(Outcome.LIMIT, "reason.page_limit", now);
-            else { phase = Phase.BETWEEN; nextAt = now + settings.delayMs(); setDetail("status.page_saved", expected, total); }
+            else { phase = Phase.BETWEEN; nextAt = now + delay(); setDetail("status.page_saved", expected, total); }
             return true;
         }
         if (phase != Phase.READING) return false;
@@ -249,12 +263,21 @@ public final class CaptureEngine {
                 endKey(Outcome.MISMATCH, "smart.join_missing", now); return true;
             }
             smartHeader = false;
+            if (smartStage == SmartStage.PREFIX) {
+                var query = EventParser.query(command.command());
+                for (var item : smartCurrent) if (CoreProtectParser.entry(item)) {
+                    String error = prefixOrder.accept(EventParser.parse(item, query).timestamp());
+                    if (error != null) { endKey(Outcome.MISMATCH, "smart.join_missing", now); return true; }
+                }
+            }
+            if (smartStage == SmartStage.PREFIX) for (int n = 0; n < smartCurrent.size(); n++) smartSourcePages.add(serverPage);
             smartSearch.addAll(smartCurrent); smartCurrent.clear(); smartSearchPages++;
             if (smartStage == SmartStage.PREFIX) completeSmartPrefix(p.total(), now);
             else completeSmartTail(p.total(), now);
             return true;
         }
         if (smartHeader && (CoreProtectParser.entry(m) || CoreProtectParser.coordinates(m))) {
+            if (smartCurrent.size() >= 512) { endKey(Outcome.MISMATCH, "smart.join_missing", now); return true; }
             smartCurrent.add(m); lastLine = now; return true;
         }
         return related(m);
@@ -265,46 +288,58 @@ public final class CaptureEngine {
             endKey(Outcome.MISMATCH, "smart.join_missing", now); return;
         }
         var query = EventParser.query(command.command());
-        List<SmartOverlap.Event> old = SmartOverlap.events(pages.getFirst().messages(), query);
+        var original = pages.getFirst();
+        var leading = SmartOverlap.edge(original.messages(), true);
+        List<SmartOverlap.Event> old = SmartOverlap.events(leading, query);
         List<SmartOverlap.Event> fresh = SmartOverlap.events(smartSearch, query);
         int count = Math.min(5, old.size());
-        int match = SmartOverlap.find(fresh, old.subList(0, count));
-        if (match < 0) {
-            if (serverPage >= serverTotal || smartSearchPages >= 12)
-                endKey(Outcome.MISMATCH, "smart.join_missing", now);
-            else { serverPage++; phase = Phase.BETWEEN; nextAt = now + settings.delayMs(); }
-            return;
-        }
-        List<MessageData> prefix = SmartOverlap.dataOnly(smartSearch.subList(0, fresh.get(match).start()));
-        Page original = pages.getFirst();
-        var order = new SmartCsvOrder();
-        for (MessageData item : prefix) if (CoreProtectParser.entry(item)) {
-            if (order.accept(EventParser.parse(item, query).timestamp()) != null) {
-                endKey(Outcome.MISMATCH, "smart.join_missing", now); return;
-            }
-        }
-        if (order.accept(EventParser.parse(original.messages().get(old.getFirst().start()), query).timestamp()) != null) {
+        if (count < 3 || old.subList(0, count).stream().map(SmartOverlap.Event::fingerprint).distinct().count() < 3) {
             endKey(Outcome.MISMATCH, "smart.join_missing", now); return;
         }
-        var merged = new ArrayList<MessageData>(original.messages().size() + prefix.size());
-        if (!original.messages().isEmpty() && CoreProtectParser.header(original.messages().getFirst()))
-            merged.add(original.messages().getFirst());
-        merged.addAll(prefix);
-        merged.addAll(original.messages().subList(!original.messages().isEmpty()
-                && CoreProtectParser.header(original.messages().getFirst()) ? 1 : 0, original.messages().size()));
-        if (merged.size() > 512) { endKey(Outcome.MISMATCH, "smart.join_missing", now); return; }
-        Page replacement = new Page(original.number(), true, merged);
-        pages.set(0, replacement);
-        sink.replaceFirst(replacement, command.firstPage() + pages.size(), prefix);
-        smartStage = SmartStage.TAIL; smartSearch.clear(); smartCurrent.clear(); smartSearchPages = 0;
-        serverPage = Math.max(1, pages.size() - 1);
-        phase = Phase.BETWEEN; nextAt = now + settings.delayMs();
+        if (stagedPrefix == null) stagedPrefix = sink.prefixBuffer();
+        int match = SmartOverlap.find(fresh, old.subList(0, count));
+        if (match < 0) {
+            String firstStamp = EventParser.parse(leading.get(old.getFirst().start()), query).timestamp();
+            String lastStamp = EventParser.parse(leading.get(old.get(count - 1).start()), query).timestamp();
+            prefixFirstSeen |= fresh.stream().anyMatch(e -> e.fingerprint().equals(old.getFirst().fingerprint()));
+            String boundary = prefixFirstSeen ? lastStamp : firstStamp;
+            boolean passed = false;
+            if (!fresh.isEmpty()) {
+                String stamp = EventParser.parse(smartSearch.get(fresh.getLast().start()), query).timestamp();
+                if (boundary.length() < 19 || stamp.length() < 19 || !boundary.substring(19).equals(stamp.substring(19))) {
+                    endKey(Outcome.MISMATCH, "smart.join_missing", now); return;
+                }
+                passed = stamp.substring(0, 19).compareTo(boundary.substring(0, 19)) < 0;
+            }
+            if (serverPage >= serverTotal || passed) {
+                endKey(Outcome.MISMATCH, "smart.anchor_passed", now); return;
+            }
+            // Retain only the possible cross-page overlap; stage earlier complete events.
+            if (fresh.size() >= count) {
+                int cut = fresh.get(fresh.size() - (count - 1)).start();
+                stagePrefix(smartSearch.subList(0, cut));
+                smartSearch.subList(0, cut).clear();
+                smartSourcePages.subList(0, cut).clear();
+            }
+            serverPage++; phase = Phase.BETWEEN; nextAt = now + delay();
+            return;
+        }
+        stagePrefix(smartSearch.subList(0, fresh.get(match).start()));
+        smartReplacement = new Page(original.number(), true, PrefixJournal.prepend(stagedPrefix, original.messages()));
+        smartPrefix = stagedPrefix;
+        int headPage = smartSourcePages.get(fresh.get(match).start());
+        smartStage = SmartStage.TAIL; smartSearch.clear(); smartCurrent.clear(); smartSourcePages.clear(); smartSearchPages = 0;
+        serverPage = Math.max(1, pages.size() - 1 + pageOffset + headPage - 1);
+        phase = Phase.BETWEEN; nextAt = now + delay();
     }
 
+    private void stagePrefix(List<MessageData> messages) {
+        for (var batch : PrefixJournal.batches(SmartOverlap.dataOnly(messages))) stagedPrefix.addAll(batch);
+    }
     private void completeSmartTail(int serverTotal, long now) {
         var oldMessages = new ArrayList<MessageData>();
         for (int i = Math.max(0, pages.size() - 2); i < pages.size(); i++)
-            oldMessages.addAll(SmartOverlap.dataOnly(pages.get(i).messages()));
+            oldMessages.addAll(SmartOverlap.dataOnly(SmartOverlap.edge(pages.get(i).messages(), false)));
         var query = EventParser.query(command.command());
         var old = SmartOverlap.events(oldMessages, query);
         var fresh = SmartOverlap.events(smartSearch, query);
@@ -313,7 +348,7 @@ public final class CaptureEngine {
         if (match < 0) {
             if (serverPage >= serverTotal || smartSearchPages >= 14)
                 endKey(Outcome.MISMATCH, "smart.join_missing", now);
-            else { serverPage++; phase = Phase.BETWEEN; nextAt = now + settings.delayMs(); }
+            else { serverPage++; phase = Phase.BETWEEN; nextAt = now + delay(); }
             return;
         }
         var suffix = SmartOverlap.dataOnly(smartSearch.subList(fresh.get(match + count - 1).end(), smartSearch.size()));
@@ -328,7 +363,13 @@ public final class CaptureEngine {
             if (error != null) { endKey(Outcome.MISMATCH, "smart.join_missing", now); return; }
         }
         int logical = command.firstPage() + pages.size();
-        pageOffset = serverPage - logical;
+        pageOffset = serverPage - logical + (suffix.isEmpty() ? 1 : 0);
+        total = (suffix.isEmpty() ? pages.size() : logical) + serverTotal - serverPage;
+        if (smartReplacement != null) {
+            pages.set(0, smartReplacement);
+            sink.replaceFirst(smartReplacement, logical, smartPrefix, pageOffset);
+            smartReplacement = null; smartPrefix = List.of();
+        }
         smartStage = SmartStage.NONE; smartSearch.clear(); smartCurrent.clear();
         expected = logical;
         if (!suffix.isEmpty()) {
@@ -336,12 +377,11 @@ public final class CaptureEngine {
             pending.addAll(suffix); commit(true);
             if (serverPage >= serverTotal) { endKey(Outcome.COMPLETE, "reason.complete", now); return; }
         } else {
-            pageOffset++;
             total = pages.size() + serverTotal - serverPage;
             expected--;
             if (serverPage >= serverTotal) { endKey(Outcome.COMPLETE, "reason.complete", now); return; }
         }
-        phase = Phase.BETWEEN; nextAt = now + settings.delayMs();
+        phase = Phase.BETWEEN; nextAt = now + delay();
     }
 
     private boolean acceptRecreation(MessageData m, long now) {
@@ -358,8 +398,8 @@ public final class CaptureEngine {
             var p = footer.get();
             if (p.current() != 1 || p.total() < expected || (total > 0 && p.total() != total))
                 endKey(Outcome.MISMATCH, "recovery.changed", now);
-            else { total = p.total(); recreationReadyAt = now + settings.delayMs(); }
-        } else if (related && recreationReadyAt >= 0) recreationReadyAt = now + settings.delayMs();
+            else { total = p.total(); recreationReadyAt = now + delay(); }
+        } else if (related && recreationReadyAt >= 0) recreationReadyAt = now + delay();
         return related;
     }
 
@@ -430,11 +470,13 @@ public final class CaptureEngine {
     }
     public void end(Outcome outcome, String why, long now) {
         if (!active()) return;
+        diagnosticCode = "reason.literal";
         literalDetail = why;
         finish(outcome, now);
     }
     public void endKey(Outcome outcome, String key, long now, Object... args) {
         if (!active()) return;
+        diagnosticCode = key;
         setDetail(key, args);
         finish(outcome, now);
     }
@@ -450,11 +492,14 @@ public final class CaptureEngine {
     public int completedPages() { return pages.size(); }
     public int totalPages() { return total; }
     public int expectedPage() { return expected; }
+    public int recoveryPageOffset() { return pageOffset; }
+    public void restorePageOffset(int offset) { pageOffset = offset; }
     public int nextRecoveryPage() {
         int next = command.firstPage() + pages.size();
         return total > 0 ? Math.min(next, total) : next;
     }
     public String detail() { return detail(settings.language()); }
+    public String diagnosticCode() { return diagnosticCode; }
     public String detail(Language language) {
         String value = literalDetail != null ? literalDetail : Translations.text(language, detailKey, detailArgs);
         return paused() ? Translations.text(language, "status.paused", value) : value;

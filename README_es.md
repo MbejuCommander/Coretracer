@@ -1,4 +1,57 @@
-**CoreTrace 1.7.6 — Minecraft Java 26.3 · Fabric · Solo cliente**
+**CoreTrace 1.7.14 — Minecraft Java 26.3 · Fabric · Solo cliente**
+
+### Editar tareas pendientes en pausa e informes de error (1.7.14)
+
+Al pausar Task Queue puedes agregar, copiar, editar, eliminar y ordenar las **tareas pendientes** desde el menú de la cola. La tarea actual permanece bloqueada porque puede tener páginas o comandos personalizados guardados. Los cambios afectan solo a esta ejecución; se guardan en el punto de recuperación antes de aplicarse y sobreviven a un reinicio del cliente. Si falla el guardado, se conserva la cola anterior. Si eliminas la última tarea pendiente cuando la cola está entre tareas, esta termina de forma segura. Se conservan el libro Excel y los archivos ya generados.
+
+Cuando una captura, reanudación, escritura o cola termina con un error, CoreTrace crea `error-report-...txt` junto a la exportación, en la carpeta del libro Excel o en `coretrace/exports` si el fallo corresponde a la cola. Puedes abrir el informe más reciente desde **Ver registros → Abrir último informe de error**. Incluye versiones del mod y Java, código interno del error, páginas e intentos, estado de Smart Delay y eventos internos recientes. Excluye comandos, direcciones de servidor, chat, registros capturados y mensajes de excepciones. Un kick por spam o un fallo transitorio resuelto automáticamente no genera informe. El archivo permanece local y nunca se envía automáticamente.
+
+### Reanudación fiable de CSV inteligente (1.7.13)
+
+Al comprobar páginas guardadas después de una desconexión, CoreTrace compara fecha y hora UTC de CoreProtect, jugador, acción, contenido y coordenadas interpretadas de varios registros consecutivos. Ignora los espacios iniciales de la línea de coordenadas, ya que CoreProtect cambia su alineación cuando crece el tiempo relativo mostrado (por ejemplo, de `9.98/h ago` a `10.04/h ago`). Una fecha o coordenada diferente sigue impidiendo la coincidencia. Si no encuentra una secuencia fiable, detiene la captura y conserva los datos de recuperación. La corrección se aplica al modo simple y a Task Queue, e incluye el caso reportado de 213 páginas en el que un cambio de un espacio detuvo la reanudación.
+
+### Estabilidad configurable después de un kick (1.7.12)
+
+En **Ajustes → Captura → Smart Delay → Estabilidad tras kicks** puedes configurar cuánto tiempo de páginas confirmadas necesita Smart Delay antes de volver a acelerar después de cada kick por spam. Los cuatro valores predeterminados son **30, 60, 90 y 120 segundos**. Cada campo admite 1–120 segundos; los valores no pueden disminuir entre kicks. Si dejas un campo vacío, usa su valor predeterminado. El submenú incluye un botón para restaurar los cuatro valores. También se aplica a las tareas de Task Queue según sus ajustes efectivos. Las pausas, desconexiones y períodos largos sin actividad no consumen esta espera. Al cargar un perfil antiguo, una espera guardada que supere el período configurado para su número de kicks se reduce a ese período. Los cambios de ajustes se aplican desde la próxima captura.
+
+### Variación de Smart Delay por página (1.7.11)
+
+Smart Delay ahora varía la espera entre páginas de CoreProtect con un patrón de tres pasos alrededor del valor aprendido: **0 %, +5 %, +10 %**. Con una base de 750 ms, las esperas previstas son **750, 788 y 825 ms** (redondeadas al milisegundo más cercano). Se respetan el mínimo configurado y el tope de 30000 ms. Un kick por spam aumenta el valor aprendido a **1,5 veces la espera real elegida para la última página**; por ejemplo, un kick tras el paso de 825 ms lo eleva a unos 1238 ms. Esto no altera el delay manual, los delays de comandos personalizados ni el Task delay. La posición del patrón y las esperas recientes se guardan con el aprendizaje, también para reanudar.
+
+El submenú agrupa **Mín**, **Promedio** y **Máx** bajo **Últimos 3 comandos**. Son estadísticas descriptivas de las tres esperas más recientes elegidas para pedir páginas. **Siguiente** muestra la espera prevista para la próxima página; puede superar el valor aprendido debido a la variación. El promedio no dirige el algoritmo de adaptación. La ventana de observación de 5 segundos sigue determinando cuándo puede cambiar el valor aprendido.
+
+### Smart Delay y ETA (1.7.10)
+
+En **Ajustes → Captura**, el interruptor junto al delay activa **Smart Delay**. Viene **desactivado**: el campo manual conserva su valor y funciona como antes. Al activarlo, el campo manual deja de ser editable y aparece debajo el botón **Smart Delay**. Se aplica a páginas de CoreProtect en capturas simples y Task Queue, con los ajustes efectivos de cada tarea. No modifica los delays entre tareas ni los comandos personalizados.
+
+En el submenú puedes configurar:
+
+- **Mensaje de expulsión por spam**: `Kicked for spamming` por defecto. Busca ese texto dentro del motivo real de desconexión, sin distinguir mayúsculas. Vacío restaura el predeterminado; las desconexiones por otros motivos no penalizan el ritmo.
+- **Mínimo (ms)**: **240** por defecto o al dejarlo vacío; rango **240–30000 ms**. Es el límite inferior permitido, no una orden para empezar directamente a esa velocidad. Un aprendizaje nuevo empieza con el delay manual, o con este mínimo si es mayor. Los cambios se aplican desde la próxima captura. Los mínimos ya guardados se conservan; vacía el campo para usar 240 ms.
+- **Ventana de observación (s)**: **5 segundos** por defecto o al dejarla vacía; rango **1–300 segundos**. No es el delay entre comandos. Ventanas cortas aportan menos evidencia. No existe una cuota fija de 30 comandos.
+- **Estabilidad tras kicks**: cuatro períodos editables de actividad confirmada, **30/60/90/120 segundos** por defecto, con un máximo de dos minutos.
+- **Aprendizaje separado por servidor**: **desactivado** por defecto. Desactivado usa un único perfil global guardado, compartido entre servidores, tareas y sesiones. Activado mantiene perfiles independientes por dirección; cambiar la opción no borra los anteriores. Dos direcciones no se fusionan automáticamente, aunque Recuperación permita comprobar registros desde otra dirección.
+- **Restablecer este aprendizaje** elimina solo el perfil seleccionado y permite aprender de nuevo.
+
+Los cuatro indicadores de solo lectura muestran el **mínimo, promedio y máximo de los últimos tres delays elegidos para pedir páginas de CoreProtect**, además del **próximo delay previsto**. Antes de reunir tres solicitudes se muestran las muestras disponibles; antes de la primera, aún no hay datos. Son esperas entre comandos, no tiempos de respuesta ni límites garantizados del servidor. Para 550, 440 y 240 ms, se ven 240, 410 y 550 ms. También aparece la fecha del último kick por spam.
+
+Después de seis ventanas de observación estables, Smart Delay reduce el delay un 10 %. Cuando llega al 150 % o menos de un delay que causó problemas, reduce solo un 2 % (redondeado al milisegundo más cercano, al menos 1 ms); un paso rápido no salta ese umbral. Siempre respeta el mínimo configurado. Un kick por spam eleva el valor aprendido a 1,5 veces la última espera entre páginas (hasta 30000 ms), recuerda el valor problemático y exige el período configurado de actividad confirmada antes de volver a acelerar. Las pausas, desconexiones y períodos largos sin actividad no reducen la espera pendiente. La espera y el historial de kicks persisten al reiniciar. El menú muestra los segundos activos restantes. El mínimo aprendido deja de ser permanente: después de estabilizarse, el mod puede probar valores inferiores con pasos pequeños. Todavía pueden producirse nuevos kicks al probar.
+
+Las estadísticas de las últimas tres solicitudes son informativas; la adaptación usa ventanas completas. El enfriamiento de reconexión/reanudación tras un kick sigue siendo al menos una ventana o dos delays. El aprendizaje se guarda en `coretrace/smart-delay.json`. La exportación CSV/Excel y los datos de recuperación mantienen su funcionamiento.
+
+El botón rojo **Restablecer de fábrica** del menú principal abre una confirmación. Al aceptar, restaura todos los ajustes globales, incluido el idioma, y borra todo el aprendizaje global y por servidor de Smart Delay. Conserva los perfiles, la lista actual de tareas y sus opciones propias, favoritos, historial de consultas, archivos generados y datos de recuperación. No está disponible durante una captura, cola, guardado o recuperación en ejecución. Cancelar la ventana no modifica nada.
+
+**Mostrar ETA y progreso**, debajo de **Aceptar página única sin pie**, viene **activado**. Controla todo el indicador sobre la barra rápida: `ETA 01:23:45 · 67 %`. El porcentaje y el tiempo corresponden a la captura/tarea actual, no a todas las tareas futuras de la cola. Usa un promedio suavizado del tiempo real entre páginas confirmadas, incluidas las esperas. Empieza con **Calculando…**, muestra **Pausado** o **Recuperando…** cuando corresponde y recalcula tras esas interrupciones. El 100 % solo aparece cuando la captura termina correctamente. El cálculo mantiene unas pocas variables, no relee CSV y actualiza el texto como máximo una vez por segundo.
+
+### Reanudar desde otra dirección (1.7.7)
+
+En el menú principal, **Reanudar** aparece junto a **Start capture** cuando una captura simple está pausada o existe una captura/cola con recuperación pendiente. Ocupa temporalmente el lugar de Favoritos. Continúa una pausa o inicia otro ciclo de recuperación de los datos guardados.
+
+**Ajustes → Recuperación → Reanudar desde otra dirección** viene activado. Una dirección diferente solo se admite cuando la captura guardada tiene páginas confirmadas y CSV inteligente habilitado. CoreTrace vuelve a ejecutar la consulta y exige coincidencias de registros al inicio y cerca del final guardado antes de incorporar datos nuevos. Tener acceso a CoreProtect por sí solo no demuestra que sea la misma consulta. Si no se puede comprobar la unión, conserva el parcial; no reinicia toda la captura. Sin páginas verificables, o con CSV inteligente desactivado, se exige la dirección original. Una cola entre tareas tampoco ofrece registros de una captura pendiente para verificar otra dirección.
+
+La reanudación tras una desconexión admite hasta **5 intentos automáticos**. Si fallan, conserva el progreso y permite volver a intentarlo con Reanudar. Una discrepancia comprobada de registros detiene los intentos automáticos inmediatamente; volver a pulsar Reanudar permite una nueva comprobación. Las respuestas tardías y el timeout se respetan antes del siguiente intento. Este límite es independiente de los reintentos de conexión y de los reintentos por cambios de orden durante una captura. Con la opción de otra dirección activada, se programa un aviso rojo **2 segundos después** del mensaje de reanudación; se cancela si se descarta o termina la recuperación antes de mostrarlo.
+
+Las entradas nuevas se guardan provisionalmente en bloques `.recovery-prefix-<id>-N.json`. Solo después de verificar las uniones del inicio y del final se publica `.recovery-prefix.json`; hasta entonces las páginas anteriores siguen intactas. El CSV, el resumen y el JSON se escriben por bloques. El desplazamiento de páginas también queda guardado para otra desconexión. Los bloques no confirmados se limpian al finalizar el intento y los necesarios para recuperación se eliminan al completar o cancelar y guardar correctamente. Una página lógica del CSV puede contener varias páginas físicas incorporadas al inicio.
 
 ### Reintentos configurables de CSV inteligente (1.7.6)
 
@@ -14,7 +67,7 @@ En **Task Queue → Modo Excel**, el nombre escrito para el libro también nombr
 
 Al reconectar o detectar un desplazamiento de resultados, CoreTrace conserva las páginas confirmadas. Consulta el inicio para incorporar entradas nuevas y busca una secuencia de hasta cinco entradas, con al menos tres diferentes cerca de la última página guardada. La comparación usa la fecha del servidor y el contenido estable, porque textos relativos como «hace 1 minuto» cambian con el tiempo. Reemplaza la zona que se vuelve a leer y continúa cerca del final guardado, sin repetir todas las páginas intermedias. Por ejemplo, si terminó la página 322 y dos registros nuevos desplazan el resultado, busca la unión cerca de 322–323 y continúa desde allí.
 
-La búsqueda inicial está limitada a 12 páginas y la del final a 14; si no encuentra coincidencias fiables, conserva el CSV y la recuperación como resultado parcial y avisa, sin reiniciar automáticamente toda la consulta. La unión exige tres entradas diferentes, de modo que consultas muy cortas pueden quedar como parciales. No hay identificadores únicos de CoreProtect ni una instantánea fija del servidor: cambios invisibles en páginas intermedias y eventos idénticos en el mismo segundo no pueden descartarse con certeza. Las páginas guardadas pueden contener más filas que una página física del servidor después de añadir entradas al inicio; `page_requested` en el CSV representa la página lógica del archivo recuperado.
+La búsqueda inicial avanza hasta encontrar la fecha, hora y secuencia de registros guardados, sin el antiguo límite de 12 páginas. Revisa todos los eventos del mismo instante; si pasa a fechas anteriores sin encontrar la coincidencia requerida, detiene la reanudación. La búsqueda cercana al final sigue limitada a 14 páginas y usa el desplazamiento detectado al inicio; si no encuentra coincidencias fiables, conserva el CSV y la recuperación como resultado parcial y avisa, sin reiniciar automáticamente toda la consulta. La unión exige tres entradas diferentes, de modo que consultas muy cortas pueden quedar como parciales. No hay identificadores únicos de CoreProtect ni una instantánea fija del servidor: cambios invisibles en páginas intermedias y eventos idénticos en el mismo segundo no pueden descartarse con certeza. Las páginas guardadas pueden contener más filas que una página física del servidor después de añadir entradas al inicio; `page_requested` en el CSV representa la página lógica del archivo recuperado.
 
 ### Límites de tiempos y cancelación segura (1.7.3)
 
@@ -148,7 +201,7 @@ Para instalarlo:
 
 1. Abre una instancia de **Minecraft Java 26.3** con **Fabric Loader 0.19.5 o posterior**. El juego utiliza Java 25; el launcher oficial suele gestionar su runtime. En otros launchers, selecciona Java 25.
 2. Instala [Fabric API para 26.3](https://modrinth.com/mod/fabric-api/versions?g=26.3), versión **0.161.0+26.3** o posterior compatible.
-3. Copia `coretrace-1.7.6+26.3.jar` dentro de la carpeta `mods` de esa instancia. Si tenías la versión anterior, retira su JAR para dejar una sola versión de CoreTrace. Tu configuración e historial se conservan.
+3. Copia `coretrace-1.7.11+26.3.jar` dentro de la carpeta `mods` de esa instancia. Si tenías la versión anterior, retira su JAR para dejar una sola versión de CoreTrace. Tu configuración e historial se conservan.
 4. Si quieres abrirlo desde la lista de mods, instala [Mod Menu compatible con 26.3](https://modrinth.com/mod/modmenu). Es opcional: F8 y `/coretrace` funcionan sin Mod Menu.
 5. Entra a un servidor que ya tenga CoreProtect funcionando y donde tu usuario pueda ejecutar las consultas.
 
@@ -168,7 +221,7 @@ Abre **F8** o escribe **`/coretrace`** para ver el menú. En Mod Menu: seleccion
 
 **El CSV siempre usa columnas en inglés y conserva el texto original del servidor.** Con CoreProtect en inglés, verás `broke`, `logged in`, `removed`, etc., aunque el menú esté en español. No se traduce el contenido del chat, los comandos, los carteles ni los textos emergentes. Si el servidor usa otro idioma, también se conserva ese original.
 
-[English instructions](README-en.md).
+[English instructions](README.md).
 
 En **Ajustes → Exportación CSV → Nombre del archivo CSV** puedes escribir, por ejemplo, `consulta` o `consulta.csv`. Se generará `consulta.csv`; si la exportación se divide en cuatro partes, serán `consulta_1.csv`, `consulta_2.csv`, `consulta_3.csv` y `consulta_4.csv`. Deja el campo vacío para el nombre predeterminado. Guarda los ajustes antes de iniciar la captura: el nombre y las columnas quedan fijados para esa sesión.
 
@@ -264,14 +317,14 @@ Los comandos locales disponibles son:
 | `/coretrace start a:-block u:jose t:3d` | Inicia una captura desde filtros. |
 | `/coretrace start /co l a:-block u:jose t:3d` | Inicia una captura desde el comando completo. |
 | `/coretrace pause` | Pausa el envío de nuevas páginas; sigue recogiendo la respuesta pendiente. |
-| `/coretrace resume` | Continúa una captura pausada en la misma conexión. |
+| `/coretrace resume` | Continúa una captura pausada o reintenta una recuperación pendiente. |
 | `/coretrace cancel` | Detiene la captura y exporta lo recibido. |
 | `/coretrace status` | Muestra el estado. |
 | `/coretrace folder` | Abre la carpeta de exportaciones. |
 
 Una consulta numérica como `/coretrace start /co l 3` permite recoger desde una página existente: el informe indicará que faltan las anteriores. La captura automática del chat comienza con una consulta nueva con filtros, no con un cambio de página aislado. Se reconocen `co`, `core`, `coreprotect` y sus variantes con el espacio de nombres `coreprotect:`. No se aceptan `p:`, `page:` ni `#count` en una consulta nueva: usa una consulta normal desde la primera página.
 
-Durante una captura se bloquea el envío manual de otras órdenes `/co` para evitar sustituir la consulta que CoreProtect mantiene en memoria. Evita usar el inspector mientras está capturando. La pausa no libera esa consulta; cancela si necesitas ejecutar otra orden. Tras un final incierto, el asistente espera el tiempo de espera configurado antes de iniciar otra captura, para dejar llegar las respuestas tardías. No reintenta automáticamente una página que agota su tiempo ni reanuda en un servidor diferente. Tras una desconexión puede recuperar la consulta al volver al mismo servidor. El historial permite iniciarla de nuevo.
+Durante una captura se bloquea el envío manual de otras órdenes `/co` para evitar sustituir la consulta que CoreProtect mantiene en memoria. Evita usar el inspector mientras está capturando. La pausa no libera esa consulta; cancela si necesitas ejecutar otra orden. Tras un final incierto, el asistente espera el tiempo de espera configurado antes de iniciar otra captura, para dejar llegar las respuestas tardías. Los fallos transitorios durante la recuperación admiten hasta cinco intentos; durante una captura normal, un timeout conserva el parcial. Comprueba los registros para reanudar desde otra dirección cuando está habilitado. Tras una desconexión puede recuperar la consulta al volver al mismo servidor. El historial permite iniciarla de nuevo.
 
 El cliente solo ve los mensajes que recibe y necesita los permisos normales de CoreProtect. No obtiene acceso a la base de datos ni amplía permisos. La captura automática solo envía consultas; la cola también puede enviar el comando personalizado que configure el usuario. El único tráfico añadido durante una captura son comandos de consulta y paginación. Los archivos se guardan localmente, sin enviarlos a servicios externos.
 
@@ -290,6 +343,8 @@ Linux/macOS: ./gradlew build
 
 El archivo resultante estará en `build/libs/`. Usa el JAR normal; el archivo que termina en `-sources.jar` es código fuente y no se instala como mod.
 
+Para abrir el cliente de desarrollo probado, usa `gradlew.bat runClient -PwithoutModMenu`. Esta opción omite Mod Menu en la ejecución de desarrollo: la versión 20.0.1 fijada para su API opcional no admite Minecraft 26.3 en tiempo de ejecución. F8 funciona sin él.
+
 También se incluye una compilación alternativa con Python 3.10+ y JDK 25:
 
 ```text
@@ -298,7 +353,7 @@ python build-portable.py
 
 Configura `JAVA_HOME` apuntando al JDK 25 o posterior si no está en el PATH. El script descarga las clases oficiales de Minecraft 26.3, Fabric y Mod Menu, verifica sus hashes publicados, compila las fuentes y ejecuta las pruebas. Guarda las dependencias en `.portable/`, que no se distribuye. Minecraft 26.3 utiliza clases sin ofuscación, por lo que este camino genera el JAR sin una etapa de remapeo. El script requiere acceso de red a los repositorios oficiales. `build-portable.bat` permite ejecutarlo en Windows.
 
-La versión 1.7.6 se compiló con JDK 25.0.4 y Gradle (`gradlew.bat test build --offline`) y pasó **190 pruebas automatizadas**, sin fallos ni errores. Las 70 clases del JAR se verificaron como bytecode de Java 25 (versión 69). En la versión 1.7.1 se abrió un libro generado con Microsoft Excel 16.0 y se comprobaron las hojas, coordenadas numéricas, filas, comillas, saltos de línea y conservación de textos que podrían parecer fórmulas. Las pruebas de Excel también cubren el nombre personalizado conservado al reanudar, la eliminación segura de las carpetas de tareas tras la última tarea y comando, la cancelación con resultado parcial, errores de escritura, conservación de backups, columnas diferentes y división de hojas. **La interfaz y una sesión real de Minecraft/CoreProtect todavía no se han probado de principio a fin.** Se mantiene la prueba de captura simulada de 5001 páginas, 105021 registros y 115023 mensajes, exportación antes del final, recuperación tras cierre y recuperación de inspecciones con la cola retenida.
+La versión 1.7.14 se compiló con JDK 25.0.4 y Gradle (`gradlew.bat test build --offline`) y pasó **231 pruebas automatizadas**, sin fallos ni errores. Las clases del JAR se verificaron como bytecode de Java 25 (versión 69). En la versión 1.7.1 se abrió un libro generado con Microsoft Excel 16.0 y se comprobaron las hojas, coordenadas numéricas, filas, comillas, saltos de línea y conservación de textos que podrían parecer fórmulas. Las pruebas de Excel también cubren el nombre personalizado conservado al reanudar, la eliminación segura de las carpetas de tareas tras la última tarea y comando, la cancelación con resultado parcial, errores de escritura, conservación de backups, columnas diferentes y división de hojas. En 1.7.8, la interfaz de Captura y Smart Delay se revisó en un cliente de desarrollo de Minecraft 26.3 a 640, 854 y 1024 píxeles de ancho, sin controles superpuestos. Se probaron con clics los interruptores de Smart Delay y ETA. Los menús principal y Recovery se habían verificado en la versión anterior. El cálculo del ETA y la detección de kicks se probaron de forma automatizada; falta comprobar el HUD durante una captura y los kicks en un servidor real. **La recuperación contra un servidor real de CoreProtect todavía no se ha probado de principio a fin.** Se mantiene la prueba de captura simulada de 5001 páginas, 105021 registros y 115023 mensajes, exportación antes del final, recuperación tras cierre y recuperación de inspecciones con la cola retenida.
 
 Para la primera comprobación en tu servidor: realiza una consulta pequeña de un usuario y un periodo conocidos, verifica que se muestra su última página y compara el transcript con los resultados del chat. Si el formato no se reconoce, conserva el transcript parcial y una captura del chat para ajustar el lector a ese formato.
 
@@ -314,3 +369,5 @@ Referencias técnicas utilizadas:
 CoreTrace es un proyecto independiente. No está afiliado a PlayPro, Mojang, Microsoft, Fabric ni TerraformersMC. Los nombres de sus productos se usan para describir compatibilidad. Las dependencias y el wrapper de Gradle conservan sus licencias respectivas.
 
 El código de trabajo está directamente en esta carpeta: `src/` contiene las fuentes y pruebas; `gradle/` y los scripts del wrapper permiten compilar. Los JARs se generan en `build/libs/`; las cachés, compilaciones y paquetes de entrega no forman parte del código fuente. La primera compilación tras limpiar cachés puede necesitar descargar dependencias.
+
+En 1.7.9 se comprobaron las posiciones de los cuatro campos de estadísticas con el menú estrecho (296 píxeles de interfaz). La fila se revisó después visualmente en 1.7.10 dentro del cliente de desarrollo. El botón de fábrica y su confirmación se comprobaron a 640 y 1024 píxeles de ancho, con clics para cancelar y aceptar en la instancia de desarrollo.

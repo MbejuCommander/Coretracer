@@ -5,9 +5,14 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 final class TaskEditScreen extends BaseScreen {
     private final TaskDefinition task;
+    private final java.util.function.Predicate<TaskDefinition> commitPending;
     private EditBox command, csv;
     private String error = "";
-    TaskEditScreen(Screen parent, TaskDefinition task) { super(parent, "queue.task"); this.task = task; }
+    TaskEditScreen(Screen parent, TaskDefinition task) { this(parent, task, null); }
+    TaskEditScreen(Screen parent, TaskDefinition task, java.util.function.Predicate<TaskDefinition> commitPending) {
+        super(parent, "queue.task"); this.task = task; this.commitPending = commitPending;
+    }
+    private void persist() { if (commitPending == null) mod.saveConfig(); }
     private void remember() {
         if (command == null) return;
         task.command = command.getValue(); task.csvName = csv.getValue();
@@ -16,7 +21,7 @@ final class TaskEditScreen extends BaseScreen {
         remember();
         try {
             if (validate) { task.validate(); task.csvName = CsvFileNames.normalize(task.csvName); }
-            mod.saveConfig(); error = ""; return true;
+            persist(); error = ""; return true;
         } catch (IllegalArgumentException e) { error = tr("queue.invalid"); return false; }
     }
     @Override protected void init() {
@@ -27,25 +32,32 @@ final class TaskEditScreen extends BaseScreen {
             if (!save(false)) return;
             Config draft = (task.csvSettings == null ? mod.config() : task.csvSettings).captureCopy();
             draft.csvFileName = task.csvName;
-            minecraft.gui.setScreen(new SettingsScreen(this, draft, 1, () -> { task.csvSettings = draft; mod.saveConfig(); }));
+            minecraft.gui.setScreen(new SettingsScreen(this, draft, 1, () -> { task.csvSettings = draft; persist(); }));
         });
         button(tr("queue.universal", yes(task.universalSettings)), left, 104, half, () -> {
-            remember(); task.universalSettings = !task.universalSettings; mod.saveConfig(); rebuildWidgets();
+            remember(); task.universalSettings = !task.universalSettings; persist(); rebuildWidgets();
         });
         button(tr("queue.task_settings"), left + half + 6, 104, panelWidth - half - 6, () -> {
             if (!save(false)) return;
             if (task.taskSettings == null) { task.taskSettings = mod.config().captureCopy(); task.taskSettings.startSound = ""; task.taskSettings.finishSound = ""; }
-            minecraft.gui.setScreen(new SettingsScreen(this, task.taskSettings, 2, mod::saveConfig));
+            minecraft.gui.setScreen(new SettingsScreen(this, task.taskSettings, 2, this::persist));
         }).active = !task.universalSettings;
         task.migrateCommands();
         button(tr("queue.commands_count", task.commands.size()), left, 141, panelWidth, () -> {
             if (save(false)) minecraft.gui.setScreen(new TaskCommandsScreen(this, task));
         });
-        button(tr("queue.csv_inherit"), left, 177, panelWidth, () -> { task.csvSettings = null; mod.saveConfig(); rebuildWidgets(); }).active = task.csvSettings != null;
-        button(tr("ui.save_back"), left, height - 28, half, () -> { if (save(true)) super.onClose(); });
+        button(tr("queue.csv_inherit"), left, 177, panelWidth, () -> { task.csvSettings = null; persist(); rebuildWidgets(); }).active = task.csvSettings != null;
+        button(tr("ui.save_back"), left, height - 28, half, () -> {
+            if (!save(true)) return;
+            if (commitPending != null && !commitPending.test(task.copy())) { error = tr("queue.edit_failed"); return; }
+            super.onClose();
+        });
         button(tr("common.back"), left + half + 6, height - 28, panelWidth - half - 6, this::onClose);
     }
-    @Override public void onClose() { if (save(false)) super.onClose(); }
+    @Override public void onClose() {
+        if (commitPending != null) super.onClose(); // Back discards an uncommitted pending-task draft.
+        else if (save(false)) super.onClose();
+    }
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         super.extractRenderState(g, mx, my, delta);
         label(g, tr("queue.command"), left, 34, panelWidth, 0xFFB8C9D9);

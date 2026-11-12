@@ -1,5 +1,6 @@
 package dev.coretrace.core;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** Tick-driven queue: export completion, custom command delay, then inter-task delay. */
@@ -19,7 +20,7 @@ public final class TaskQueue {
             this(tasks, delay, index, commandIndex, phase, remainingMs, false, false);
         }
     }
-    private final List<TaskDefinition> tasks;
+    private final ArrayList<TaskDefinition> tasks;
     private final int delay;
     private final Host host;
     private Phase phase = Phase.STOPPED;
@@ -29,7 +30,7 @@ public final class TaskQueue {
     public TaskQueue(List<TaskDefinition> tasks, int delay, Host host) {
         if (tasks.isEmpty()) throw new IllegalArgumentException("Empty queue");
         tasks.forEach(TaskDefinition::validate);
-        this.tasks = List.copyOf(tasks); this.delay = delay; this.host = host;
+        this.tasks = new ArrayList<>(tasks); this.delay = delay; this.host = host;
     }
     public boolean active() { return phase != Phase.STOPPED; }
     public boolean paused() { return active() && paused; }
@@ -39,7 +40,7 @@ public final class TaskQueue {
     public void start() { index = 0; commandIndex = 0; paused = false; skipped = false; begin(); }
     private void begin() { phase = Phase.CAPTURE; if (!checkpoint(0) || !host.start(tasks.get(index))) cancel(); }
     public State snapshot(long now) {
-        return new State(tasks, delay, index, commandIndex, phase,
+        return new State(List.copyOf(tasks), delay, index, commandIndex, phase,
                 phase == Phase.CUSTOM || phase == Phase.NEXT ? Math.max(0, due - (paused ? pausedAt : now)) : 0,
                 paused, skipped);
     }
@@ -65,6 +66,23 @@ public final class TaskQueue {
         if (host.checkpoint(snapshot(now))) return true;
         paused = before; due = oldDue; pausedAt = oldPausedAt;
         return false;
+    }
+    /** Atomically replace only the queued suffix; the running task and command cursor stay fixed. */
+    public boolean replacePending(List<TaskDefinition> pending, long now) {
+        if (!paused() || pending == null) return false;
+        var candidate = new ArrayList<TaskDefinition>(tasks.subList(0, index + 1));
+        for (TaskDefinition task : pending) {
+            if (task == null) throw new IllegalArgumentException("Invalid pending task");
+            TaskDefinition copy = task.copy(); copy.validate(); candidate.add(copy);
+        }
+        State current = snapshot(now);
+        boolean finished = phase == Phase.NEXT && pending.isEmpty();
+        State proposed = new State(List.copyOf(candidate), delay, index, commandIndex,
+                finished ? Phase.STOPPED : phase, finished ? 0 : current.remainingMs(), !finished, skipped);
+        if (!host.checkpoint(proposed)) return false;
+        tasks.clear(); tasks.addAll(candidate);
+        if (finished) { phase = Phase.STOPPED; paused = false; host.finished(!skipped); }
+        return true;
     }
     /** Skip the current task after its partial capture has been saved, or skip pending custom commands. */
     public boolean skipCurrent(long now) { return skipCurrent(now, 0); }

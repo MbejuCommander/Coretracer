@@ -42,26 +42,37 @@ final class SettingsScreen extends BaseScreen {
         }
         var c = target;
         if (tab == 0) {
-            button(tr("ui.settings.auto", yes(c.automatic)), left, 63, half, () -> { c.automatic = !c.automatic; persist.run(); rebuildWidgets(); });
-            button(tr("ui.settings.hide", yes(c.hideCapturedChat)), left + half + 6, 63, panelWidth - half - 6,
+            button(tr("ui.settings.auto", yes(c.automatic)), left, captureY(63), half, () -> { c.automatic = !c.automatic; persist.run(); rebuildWidgets(); });
+            button(tr("ui.settings.hide", yes(c.hideCapturedChat)), left + half + 6, captureY(63), panelWidth - half - 6,
                     () -> { c.hideCapturedChat = !c.hideCapturedChat; persist.run(); rebuildWidgets(); });
-            button(tr("ui.language", target.selectedLanguage().nativeName()), left, 87, half, () -> { target.language = target.selectedLanguage().next().code(); persist.run(); rebuildWidgets(); });
-            button(tr("ui.settings.hovers", yes(c.captureHovers)), left + half + 6, 87, panelWidth - half - 6,
+            button(tr("ui.language", target.selectedLanguage().nativeName()), left, captureY(87), half, () -> { target.language = target.selectedLanguage().next().code(); persist.run(); rebuildWidgets(); });
+            button(tr("ui.settings.hovers", yes(c.captureHovers)), left + half + 6, captureY(87), panelWidth - half - 6,
                     () -> { c.captureHovers = !c.captureHovers; persist.run(); rebuildWidgets(); });
-            fields[0] = field(tr("ui.settings.delay_field"), values[0], left, 121, half, 6);
-            fields[1] = field(tr("ui.settings.timeout_field"), values[1], left + half + 6, 121, panelWidth - half - 6, 6);
-            fields[2] = field(tr("ui.settings.settle_field"), values[2], left, 154, half, 6);
-            fields[3] = field(tr("ui.settings.limit_field"), values[3], left + half + 6, 154, panelWidth - half - 30, 7);
-            var pageWarning = addRenderableWidget(new DelayWarningButton(left + panelWidth - 20, 154, tr("stream.page_warning"), 0xFFFF4545));
+            fields[0] = field(tr("ui.settings.delay_field"), values[0], left, captureY(121), half - 42, 6);
+            fields[0].setEditable(!c.smartDelay);
+            var toggle = addRenderableWidget(new DelayToggle(left + half - 36, captureY(121), captureHeight(), c.smartDelay,
+                    tr("delay.toggle", yes(c.smartDelay)), () -> { c.smartDelay = !c.smartDelay; persist.run(); rebuildWidgets(); }));
+            toggle.setTooltip(Tooltip.create(Component.literal(tr("delay.toggle_hint"))));
+            if (c.smartDelay) button(tr("delay.title"), left, captureY(145), half,
+                    () -> { rememberFields(); minecraft.gui.setScreen(new SmartDelayScreen(this, target, persist)); });
+            fields[1] = field(tr("ui.settings.timeout_field"), values[1], left + half + 6, captureY(121), panelWidth - half - 6, 6);
+            fields[2] = field(tr("ui.settings.settle_field"), values[2], left, captureY(154), half, 6);
+            fields[3] = field(tr("ui.settings.limit_field"), values[3], left + half + 6, captureY(154), panelWidth - half - 30, 7);
+            var pageWarning = addRenderableWidget(new DelayWarningButton(left + panelWidth - 20, captureY(154), tr("stream.page_warning"), 0xFFFF4545));
             fields[3].setResponder(value -> {
                 try { pageWarning.visible = Integer.parseInt(value) > 5000; }
                 catch (NumberFormatException e) { pageWarning.visible = false; }
             });
             try { pageWarning.visible = Integer.parseInt(values[3]) > 5000; }
             catch (NumberFormatException e) { pageWarning.visible = false; }
-            button(tr("ui.settings.single_page", yes(c.acceptSinglePage)), left, 177, panelWidth,
+            button(tr("ui.settings.single_page", yes(c.acceptSinglePage)), left, captureY(177), panelWidth,
                     () -> { c.acceptSinglePage = !c.acceptSinglePage; persist.run(); rebuildWidgets(); })
                     .setTooltip(Tooltip.create(Component.literal(tr("ui.settings.single_page_hint"))));
+            button(tr("eta.enabled", yes(c.showEta)), left, captureY(201), panelWidth,
+                    () -> { c.showEta = !c.showEta; persist.run(); rebuildWidgets(); })
+                    .setTooltip(Tooltip.create(Component.literal(tr("eta.hint"))));
+            for (var child : children()) if (child instanceof net.minecraft.client.gui.components.AbstractWidget widget
+                    && widget.getY() >= 61) widget.setHeight(captureHeight());
         } else if (tab == 1) {
             fields[5] = field(tr("ui.settings.csv_name"), values[5], left, 76, panelWidth, 104);
             fields[5].setEditable(mode != 1);
@@ -106,6 +117,9 @@ final class SettingsScreen extends BaseScreen {
             fields[8] = field(tr("recovery.smart_retries"), values[8], left + 2 * (third + 6), 113, panelWidth - 2 * (third + 6), 2);
             fields[8].setHint(Component.literal("5"));
             fields[8].setTooltip(Tooltip.create(Component.literal(tr("recovery.smart_retries_hint"))));
+            if (mode == 0) button(tr("recovery.cross_server", yes(c.resumeAcrossServers)), left, 135, panelWidth,
+                    () -> { c.resumeAcrossServers = !c.resumeAcrossServers; persist.run(); rebuildWidgets(); })
+                    .setTooltip(Tooltip.create(Component.literal(tr("recovery.cross_server_hint"))));
             if (mode == 0) button(tr("reconnect.title"), left, 158, half, () -> minecraft.gui.setScreen(new ReconnectSettingsScreen(this)));
             if (mode == 0) button(tr("recovery.discard"), left + half + 6, 158, panelWidth - half - 6, () -> { mod.discardRecovery(); rebuildWidgets(); })
                     .active = mod.hasRecovery() && !mod.active() && !mod.queueActive();
@@ -115,6 +129,19 @@ final class SettingsScreen extends BaseScreen {
         }
         button(tr("ui.save_back"), left, height - 28, half, () -> { if (save()) onClose(); });
         button(tr("common.back"), left + half + 6, height - 28, panelWidth - half - 6, this::onClose);
+    }
+    private int captureHeight() { return height < 288 ? 16 : 20; }
+    private int captureY(int original) {
+        if (height >= 288) return original + (target.smartDelay && (original == 143 || original >= 154) ? 24 : 0);
+        return switch (original) {
+            case 63 -> 61; case 87 -> 79; case 110 -> 97; case 121 -> 107;
+            case 145 -> 125;
+            case 143 -> target.smartDelay ? 143 : 125;
+            case 154 -> target.smartDelay ? 153 : 135;
+            case 177 -> target.smartDelay ? 171 : 153;
+            case 201 -> target.smartDelay ? 189 : 171;
+            default -> original;
+        };
     }
     private void soundButton(boolean finish, int y) {
         String id = finish ? target.finishSound : target.startSound;
@@ -166,10 +193,10 @@ final class SettingsScreen extends BaseScreen {
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         super.extractRenderState(g, mx, my, delta); int half = (panelWidth - 6) / 2, third = (panelWidth - 12) / 3;
         if (tab == 0) {
-            label(g, tr("ui.settings.delay"), left, 110, half, 0xFFB8C9D9);
-            label(g, tr("ui.settings.timeout"), left + half + 6, 110, half, 0xFFB8C9D9);
-            label(g, tr("ui.settings.settle"), left, 143, half, 0xFFB8C9D9);
-            label(g, tr("ui.settings.limit"), left + half + 6, 143, half, 0xFFB8C9D9);
+            label(g, tr("ui.settings.delay"), left, captureY(110), half, 0xFFB8C9D9);
+            label(g, tr("ui.settings.timeout"), left + half + 6, captureY(110), half, 0xFFB8C9D9);
+            label(g, tr("ui.settings.settle"), left, captureY(143), half, 0xFFB8C9D9);
+            label(g, tr("ui.settings.limit"), left + half + 6, captureY(143), half, 0xFFB8C9D9);
         } else if (tab == 1) {
             label(g, tr("ui.settings.csv_name"), left, 64, panelWidth, 0xFFB8C9D9);
             label(g, tr("ui.settings.csv_split_field"), left, 100, panelWidth, 0xFFB8C9D9);
@@ -182,13 +209,13 @@ final class SettingsScreen extends BaseScreen {
             label(g, tr("recovery.delay"), left, 101, third, 0xFFB8C9D9);
             label(g, tr("recovery.stable_pages"), left + third + 6, 101, third, 0xFFB8C9D9);
             label(g, tr("recovery.smart_retries"), left + 2 * (third + 6), 101, panelWidth - 2 * (third + 6), 0xFFB8C9D9);
-            label(g, tr("recovery.hint"), left, 140, panelWidth, 0xFFB8C9D9);
-            label(g, tr("recovery.same_server"), left, 184, panelWidth, 0xFF8DA9BA);
+
+            
         } else {
             label(g, tr("ui.settings.start_sound", ""), left, 78, panelWidth, 0xFFB8C9D9);
             label(g, tr("ui.settings.finish_sound", ""), left, 128, panelWidth, 0xFFB8C9D9);
         }
-        if (height >= 238) label(g, tr(error.isEmpty() ? "ui.settings.next_capture" : error), left, height - 42,
+        if (height >= 238 && (tab != 0 || height >= 288 || !target.smartDelay)) label(g, tr(error.isEmpty() ? "ui.settings.next_capture" : error), left, height - 42,
                 panelWidth, error.isEmpty() ? 0xFF8298AE : 0xFFFF9494);
     }
     @Override public void removed() { mod.stopPreview(); super.removed(); }

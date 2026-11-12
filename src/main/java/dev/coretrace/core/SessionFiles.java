@@ -40,12 +40,18 @@ public final class SessionFiles implements AutoCloseable {
             csvTemp = csvTarget.resolveSibling(csvTarget.getFileName() + ".tmp");
             csv = Files.newBufferedWriter(csvTemp, StandardCharsets.UTF_8);
         }
-        String text = Report.csv(batch(page), csvColumns, csvExcelAutoColumns);
-        if (pagesInPart > 0) {
-            int headerEnd = text.indexOf("\r\n", csvExcelAutoColumns ? text.indexOf("\r\n") + 2 : 0);
-            text = text.substring(headerEnd + 2);
+        boolean headerWritten = pagesInPart > 0;
+        boolean any = false;
+        for (var messages : PrefixJournal.batches(page.messages())) {
+            String text = Report.csv(batch(new CaptureEngine.Page(page.number(), page.confirmed(), messages)), csvColumns, csvExcelAutoColumns);
+            if (headerWritten) {
+                int headerEnd = text.indexOf("\r\n", csvExcelAutoColumns ? text.indexOf("\r\n") + 2 : 0);
+                text = text.substring(headerEnd + 2);
+            }
+            csv.write(text); headerWritten = true; any = true;
         }
-        csv.write(text); csv.flush(); pagesInPart++; writtenPages++;
+        if (!any && !headerWritten) csv.write(Report.csv(batch(page), csvColumns, csvExcelAutoColumns));
+        csv.flush(); pagesInPart++; writtenPages++;
         if (csvPagesPerFile > 0 && pagesInPart == csvPagesPerFile) completePart();
     }
     private void completePart() throws IOException {
@@ -64,7 +70,12 @@ public final class SessionFiles implements AutoCloseable {
     }
     public void replaceFirst(CaptureEngine.Page page, String query, int resumePage,
                              java.util.List<MessageData> newEntries) throws IOException {
-        writeAtomic(directory.resolve(".recovery-page-" + page.number() + ".json"), new GsonBuilder().create().toJson(page));
+        replaceFirst(page, query, resumePage, newEntries, 0);
+    }
+    public void replaceFirst(CaptureEngine.Page page, String query, int resumePage,
+                             java.util.List<MessageData> newEntries, int pageOffset) throws IOException {
+        if (page.messages() instanceof PrefixJournal.Messages prefix) prefix.publish(pageOffset);
+        else writeAtomic(directory.resolve(".recovery-page-" + page.number() + ".json"), new GsonBuilder().create().toJson(page));
         restart(query, page.number(), resumePage);
         for (MessageData message : newEntries) line(page.number(), message);
     }
@@ -84,7 +95,7 @@ public final class SessionFiles implements AutoCloseable {
         this.command = command; this.firstPage = LookupCommand.parse(command).orElseThrow().firstPage();
         Files.createDirectories(directory);
         log = Files.newBufferedWriter(directory.resolve("transcript.log"), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
-        log.write(tr("log.start", "1.7.6+26.3") + "\n");
+        log.write(tr("log.start", "1.7.11+26.3") + "\n");
         log.write(tr("log.metadata", command, MessageData.clean(server), Instant.ofEpochMilli(started), language.nativeName()) + "\n\n");
         log.flush();
     }
@@ -147,6 +158,7 @@ public final class SessionFiles implements AutoCloseable {
             moveAtomic(temp, target);
             if (log != null) { log.write("\nFINAL: " + Report.outcome(s.outcome(), language) + "\n" + s.detail() + "\n"); log.flush(); }
             if (s.outcome().successful()) cleanupCsv(single);
+            PrefixJournal.cleanupUnpublished(directory);
         } finally { close(); }
     }
     private void cleanupCsv(boolean single) throws IOException {

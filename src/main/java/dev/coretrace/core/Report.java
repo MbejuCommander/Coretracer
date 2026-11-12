@@ -65,9 +65,11 @@ public final class Report {
         var stats = new SummaryStats(lang);
         var query = EventParser.query(s.command());
         for (var page : s.pages()) {
-            var batch = new ArrayList<Row>();
-            appendRows(batch, page.number(), page.confirmed(), page.messages(), query);
-            stats.add(batch);
+            for (var messages : PrefixJournal.batches(page.messages())) {
+                var batch = new ArrayList<Row>();
+                appendRows(batch, page.number(), page.confirmed(), messages, query);
+                stats.add(batch);
+            }
         }
         var pendingRows = new ArrayList<Row>();
         appendRows(pendingRows, s.pages().isEmpty() ? s.firstPage() : s.pages().getLast().number() + 1, false, s.pending(), query);

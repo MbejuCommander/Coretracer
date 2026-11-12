@@ -23,7 +23,10 @@ final class SmartOverlap {
                     .append('\u0000').append(m.struckThrough());
             if (end < messages.size() && CoreProtectParser.coordinates(messages.get(end))) {
                 MessageData coordinate = messages.get(end++);
-                key.append('\u0000').append(coordinate.text()).append('\u0000').append(EventParser.location(coordinate).coordinates());
+                // The caret's leading spaces change as CoreProtect's relative-time text grows.
+                // Match the actual location and action hint, never its visual alignment.
+                EventParser.Location location = EventParser.location(coordinate);
+                key.append('\u0000').append(location.coordinates()).append('\u0000').append(location.hint());
             }
             result.add(new Event(key.toString(), i, end));
         }
@@ -38,6 +41,23 @@ final class SmartOverlap {
             return i;
         }
         return -1;
+    }
+
+    static List<MessageData> edge(List<MessageData> messages, boolean first) {
+        int count = 0;
+        if (first) {
+            int end = messages.size();
+            for (int i = 0; i < messages.size(); i++)
+                if (CoreProtectParser.entry(messages.get(i)) && ++count > 5) { end = i; break; }
+            return List.copyOf(messages.subList(0, end));
+        }
+        int start = messages.size();
+        for (int i = messages.size() - 1; i >= 0; i--)
+            if (CoreProtectParser.entry(messages.get(i))) {
+                if (++count > 5) break;
+                start = i;
+            }
+        return List.copyOf(messages.subList(start, messages.size()));
     }
 
     static List<MessageData> dataOnly(List<MessageData> messages) {

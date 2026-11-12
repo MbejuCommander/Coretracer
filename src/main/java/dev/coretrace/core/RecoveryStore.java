@@ -10,8 +10,12 @@ import java.util.List;
 
 /** One pending run. Page files are incremental; metadata is replaced only after the page is durable. */
 public final class RecoveryStore {
-    public record Capture(String directory, String command, long startedAt, int page, int total, Config config) {
-        public Capture at(int page, int total) { return new Capture(directory, command, startedAt, page, total, config); }
+    public record Capture(String directory, String command, long startedAt, int page, int total, Config config, int pageOffset) {
+        public Capture(String directory, String command, long startedAt, int page, int total, Config config) {
+            this(directory, command, startedAt, page, total, config, 0);
+        }
+        public Capture at(int page, int total) { return at(page, total, pageOffset); }
+        public Capture at(int page, int total, int offset) { return new Capture(directory, command, startedAt, page, total, config, offset); }
     }
     public record State(String server, Capture capture, TaskQueue.State queue, String finishSound,
                         String excelDirectory, String excelFileName) {
@@ -44,7 +48,11 @@ public final class RecoveryStore {
                 if (c.page() < 1 || c.page() > 9_999_999 || c.total() < 0 || (c.total() > 0 && c.total() < c.page()) || c.config() == null
                         || LookupCommand.parse(c.command()).filter(LookupCommand::query).isEmpty())
                     throw new IllegalArgumentException("Invalid capture recovery");
-                directory(c); c.config().normalize();
+                Path savedDirectory = directory(c); c.config().normalize();
+                int offset = PrefixJournal.savedOffset(savedDirectory, c.pageOffset());
+                if (offset < -9_999_999 || offset > 9_999_999 || (long)c.page() + offset < 1)
+                    throw new IOException("Invalid recovery page offset");
+                state = state.withCapture(c.at(c.page(), c.total(), offset));
             }
             if (state.queue() != null) {
                 var q = state.queue();
@@ -84,7 +92,7 @@ public final class RecoveryStore {
                 && pending.capture().directory().equals(dir.getFileName().toString())) return false;
         try (var files = Files.newDirectoryStream(dir)) {
             for (Path file : files) {
-                if (file.getFileName().toString().matches("\\.recovery-page-[0-9]+\\.json(?:\\.tmp)?")
+                if (file.getFileName().toString().matches("\\.recovery-(?:page-[0-9]+|prefix(?:-[a-f0-9-]{36}-[0-9]+)?)\\.json(?:\\.tmp)?")
                         && Files.isRegularFile(file, java.nio.file.LinkOption.NOFOLLOW_LINKS)) Files.delete(file);
             }
         }

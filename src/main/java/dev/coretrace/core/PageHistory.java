@@ -59,6 +59,7 @@ public final class PageHistory extends AbstractList<CaptureEngine.Page> {
             var page = JSON.fromJson(reader, CaptureEngine.Page.class);
             if (page == null || page.number() != number || page.messages().size() > 513)
                 throw new IOException("Invalid saved page " + number);
+            if (number == 1) return new CaptureEngine.Page(page.number(), page.confirmed(), PrefixJournal.load(directory, page.messages()));
             return page;
         } catch (RuntimeException e) { throw new IOException("Invalid saved page " + number, e); }
     }
@@ -66,7 +67,8 @@ public final class PageHistory extends AbstractList<CaptureEngine.Page> {
         var history = new PageHistory(directory, first);
         for (int n = first; n < first + count; n++) {
             var page = read(directory, n);
-            if (!page.confirmed() || page.messages().size() > 512) throw new IOException("Unconfirmed saved page " + n);
+            if (!page.confirmed() || (!(page.messages() instanceof PrefixJournal.Messages) && page.messages().size() > 512)) throw new IOException("Unconfirmed saved page " + n);
+            PrefixJournal.validate(page.messages());
             history.add(page);
         }
         return history.freeze();

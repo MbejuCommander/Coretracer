@@ -1,4 +1,57 @@
-**CoreTrace 1.7.6 — Minecraft Java 26.3 · Fabric · Client only**
+**CoreTrace 1.7.14 — Minecraft Java 26.3 · Fabric · Client only**
+
+### Edit pending tasks while paused; local error reports (1.7.14)
+
+Pause Task Queue to add, copy, edit, remove or reorder **pending tasks** in the queue menu. The current task stays locked because its pages or custom commands may already have been saved. Pending edits affect the current run only; they are checkpointed before taking effect and survive a client restart. If saving the checkpoint fails, the previous queue remains active. Removing the final pending task while the queue is between tasks completes it safely. The queue's Excel workbook and already generated files are preserved.
+
+On a terminal capture, recovery, storage or queue failure, CoreTrace writes an `error-report-...txt` file alongside the capture export, in the Excel workbook folder, or in `coretrace/exports` for a queue-level failure. Open the latest report with **View records → Open latest error report**. It contains the mod/Java versions, internal error code, page and retry counts, Smart Delay state and recent internal events. It excludes commands, server addresses, chat messages, captured records and exception messages. A spam kick or a transient failure that recovers does not produce a report. Reports stay local and are never sent automatically.
+
+### Reliable Smart CSV resume (1.7.13)
+
+When checking saved pages after a disconnect, CoreTrace matches the CoreProtect UTC timestamp, actor, action, content and parsed coordinates across several consecutive records. The caret's leading spaces are ignored because CoreProtect changes their alignment as the displayed relative time grows (for example, from `9.98/h ago` to `10.04/h ago`). A changed timestamp or coordinate still prevents a match. If no reliable sequence is found, the capture stops and retains its recovery data. This fix applies to simple captures and Task Queue, and covers the reported 213-page session where a one-space alignment change stopped recovery.
+
+### Configurable post-kick stability (1.7.12)
+
+In **Settings → Capture → Smart Delay → Post-kick stability**, set the confirmed-page activity required before Smart Delay accelerates again after successive spam kicks. The four defaults are **30, 60, 90 and 120 seconds**. Each field accepts 1–120 seconds; the values must not decrease from one kick to the next. Leaving a field blank uses its default, and the submenu has a button to restore all four defaults. These settings also apply to Task Queue tasks, using each task's effective settings. Pauses, disconnections and long idle gaps do not consume the stability period. Existing longer holds saved by an older release are capped at the configured period for their kick count when loaded. Changes to settings apply from the next capture.
+
+### Per-page Smart Delay variation (1.7.11)
+
+Smart Delay now varies CoreProtect page waits in a repeating three-step pattern around its learned baseline: **0%, +5%, +10%**. At a baseline of 750 ms, the planned waits are **750, 788, 825 ms** (rounded to the nearest millisecond). The minimum setting and 30000 ms cap still apply. A kick for spam raises the learned baseline to **1.5 times the selected wait used for the last page**; for example, a kick after the 825 ms step raises it to about 1238 ms. This change does not affect manual delay, custom-command delays or Task Queue delay. The three-step position and recent waits are saved with the learning profile, including across resume.
+
+The submenu groups **Min**, **Average** and **Max** under **Last 3 commands**. They are descriptive statistics of the three most recent waits actually selected for page requests. **Next** shows the wait planned for the next page; it may be above the learned baseline because of the variation. The average does not drive the adaptation algorithm. The 5-second observation window still governs when the baseline can change.
+
+### Smart Delay and ETA (1.7.10)
+
+In **Settings → Capture**, the switch beside the delay enables **Smart Delay**. It is **off by default**: the manual field keeps its value and works as before. Turning it on makes the manual field read-only and displays a **Smart Delay** button underneath. It applies to CoreProtect pages in simple captures and Task Queue, using each task’s effective settings. It does not change delays between tasks or custom commands.
+
+The submenu offers:
+
+- **Spam kick message**: `Kicked for spamming` by default. Matches that text within the actual disconnect reason, ignoring case. Blank restores the default; unrelated disconnects do not penalize pacing.
+- **Minimum (ms)**: **240** by default or when blank; range **240–30000 ms**. This is the permitted lower bound, not an instruction to start at that speed. New learning starts at the manual delay, or this minimum if higher. Changes apply from the next capture. Existing saved minimum values are preserved; clear the field to use 240 ms.
+- **Observation window (s)**: **5 seconds** by default or when blank; range **1–300 seconds**. This is not the delay between commands. Short windows provide less evidence. There is no fixed quota of 30 commands.
+- **Post-kick stability**: four editable active-time periods, **30/60/90/120 seconds** by default, with a maximum of two minutes.
+- **Separate learning per server**: **off by default**. Off uses one saved global profile shared across servers, tasks and sessions. On keeps independent profiles by server address; switching does not erase previous profiles. Two addresses are not automatically merged, even if Recovery allows record verification from another address.
+- **Reset this learning profile** deletes only the selected profile and allows fresh learning.
+
+The four read-only indicators show the **minimum, average and maximum of the last three delays selected for CoreProtect page requests**, plus the **next planned delay**. Before three requests, the available samples are shown; before the first, there is no data. These values are command waits, not response times or guaranteed server limits. For 550, 440 and 240 ms, they show 240, 410 and 550 ms. The last detected spam kick is also shown.
+
+After six stable observation windows, Smart Delay reduces pacing by 10%. Once it is at or below 150% of a previously problematic delay, it uses 2% reductions (rounded to the nearest millisecond, at least 1 ms); a fast step cannot skip this boundary. The configured minimum is always respected. A matching spam kick raises the learned baseline to 1.5 times the last page wait (up to 30000 ms), remembers the problematic value and requires the configured confirmed-activity period before accelerating again. Pauses, disconnected time and long idle gaps do not reduce the remaining hold. The hold and kick history persist across sessions. The menu shows remaining active seconds. The learned floor is no longer permanent: after stabilization, cautious probing can try lower values again. Repeated kicks can still occur while probing.
+
+The recent-three statistics remain descriptive; adaptation uses full observation windows. The post-kick reconnect/recovery cooldown is still at least one window or two delays. Learning is saved in `coretrace/smart-delay.json`. CSV/Excel exports and recovery data retain their existing behavior.
+
+The red **Factory reset** button in the main menu opens a confirmation dialog. Confirming restores all global preferences, including language, and clears all global/per-server Smart Delay learning. It keeps task profiles, the current task list and its per-task overrides, favorites, query history, generated files and recovery data. It is unavailable during an active capture, queue, save or recovery operation. Cancelling the dialog makes no changes.
+
+**Show ETA and progress**, below **Accept single page without footer**, is **on by default**. It controls the whole indicator above the hotbar: `ETA 01:23:45 · 67 %`. Both time and percentage refer to the current capture/task, not all future queue tasks. A smoothed average uses real intervals between confirmed pages, including waits. It starts with **Calculating…**, shows **Paused** or **Recovering…** when appropriate and recalculates after those interruptions. Only successful completion displays 100 %. The calculation keeps a few variables, never rereads CSV files and refreshes the text at most once per second.
+
+### Resume from another address (1.7.7)
+
+In the main menu, **Resume** appears beside **Start capture** when a simple capture is paused or a capture/queue has pending recovery. It temporarily replaces Favorite. It continues a pause or starts another recovery cycle for the saved data.
+
+**Settings → Recovery → Resume from another address** is enabled by default. Another address is allowed only when the saved capture has confirmed pages and Smart CSV enabled. CoreTrace reruns the query and requires matching records at the start and near the saved end before incorporating new data. CoreProtect access alone does not establish that the results belong to the same query. An unverifiable overlap retains partial results without restarting the whole capture. Without verifiable saved pages, or with Smart CSV disabled, the original address is required. A queue between tasks also lacks pending capture records to verify another address.
+
+Disconnected capture recovery allows up to **5 automatic attempts**. On exhaustion, progress is retained and Resume lets you try again. A verified record mismatch stops automatic attempts immediately; pressing Resume permits another check. Request timeouts and late responses are respected before retrying. This limit is independent of connection retries and shifted-result retries during capture. With cross-address recovery enabled, a red notice is scheduled **2 seconds after** the resume message; it is cancelled if recovery is discarded or finishes before it appears.
+
+New entries are staged in `.recovery-prefix-<id>-N.json` chunks. Only after both head and tail overlaps are verified is `.recovery-prefix.json` published; existing pages remain intact until then. CSV, summary and JSON output is written in batches. The page shift is also saved for another disconnection. Uncommitted chunks are cleaned after an attempt; committed recovery data is removed after successful completion or cancel-and-save. A logical CSV page may contain multiple physical pages inserted at the beginning.
 
 ### Configurable Smart CSV retries (1.7.6)
 
@@ -14,7 +67,7 @@ In **Task Queue → Excel mode**, the typed workbook name also names a new queue
 
 After reconnecting or detecting shifted results, CoreTrace keeps confirmed pages. It queries the start to include new entries, then looks for up to five matching entries, including at least three distinct ones near the last saved page. Matching uses the server timestamp and stable content because relative text such as “1 minute ago” changes over time. The overlapping area is replaced, and capture continues near the saved end rather than rereading every page between. For example, if page 322 was saved and two new records shift the results, CoreTrace looks for the join near pages 322–323 and continues there.
 
-The first search is limited to 12 pages and the tail search to 14. If a reliable match is not found, it retains the CSV and recovery data as a partial result and warns instead of automatically restarting the entire query. Three distinct entries are required, so very short queries can end as partial. CoreProtect provides neither unique event IDs nor a fixed server snapshot: unseen changes in middle pages and identical events within the same second cannot always be resolved. A saved page can contain more rows than a physical server page after front entries are inserted; `page_requested` in the CSV then represents a logical page in the recovered file.
+The initial search advances to the saved timestamp and matching record sequence without the former 12-page limit. All events sharing that instant are checked; passing into older records without the required match stops recovery. The tail search remains limited to 14 pages and uses the shift detected at the beginning. If a reliable match is not found, it retains the CSV and recovery data as a partial result and warns instead of automatically restarting the entire query. Three distinct entries are required, so very short queries can end as partial. CoreProtect provides neither unique event IDs nor a fixed server snapshot: unseen changes in middle pages and identical events within the same second cannot always be resolved. A saved page can contain more rows than a physical server page after front entries are inserted; `page_requested` in the CSV then represents a logical page in the recovered file.
 
 ### Timing limits and safe task cancellation (1.7.3)
 
@@ -148,7 +201,7 @@ Install:
 
 1. Use a Minecraft Java **26.3** instance with **Fabric Loader 0.19.5 or later**. The game uses Java 25; the official launcher normally manages its runtime. Select Java 25 in other launchers.
 2. Install [Fabric API for 26.3](https://modrinth.com/mod/fabric-api/versions?g=26.3), version **0.161.0+26.3** or a later compatible version.
-3. Put `coretrace-1.7.6+26.3.jar` in the instance's `mods` folder. Remove the old CoreTrace JAR if upgrading. Your preferences and query history are retained.
+3. Put `coretrace-1.7.11+26.3.jar` in the instance's `mods` folder. Remove the old CoreTrace JAR if upgrading. Your preferences and query history are retained.
 4. Optionally install a [Mod Menu version compatible with 26.3](https://modrinth.com/mod/modmenu). F8 and `/coretrace` also open the menu without it.
 
 To select English, open **F8 → Settings → Language** and click the language button until it shows **Language: English**. Use **Settings → Language** to switch back to Español. The choice persists independently of Minecraft's language. Menus and new notifications change immediately; the report language is fixed when each capture starts. Existing chat messages and previously saved files are not rewritten.
@@ -223,7 +276,7 @@ Local commands:
 | `/coretrace` | Open the menu. |
 | `/coretrace start a:chat u:jose t:3d` | Start a query using filters. A full `/co l ...` command also works. |
 | `/coretrace pause` | Pause new page requests while retaining an outstanding response. |
-| `/coretrace resume` | Resume on the same connection. |
+| `/coretrace resume` | Continue a paused capture or retry pending recovery. |
 | `/coretrace cancel` | Save received data and stop. |
 | `/coretrace status` | Display status. |
 | `/coretrace folder` | Open the exports folder. |
@@ -255,7 +308,7 @@ Settings are saved in `config/coretrace.json`. Initial values and ranges are:
 
 Capture timing and maximum page settings are fixed when a capture starts. Changes apply to the next capture. Increase the page delay if the server limits command frequency. The exporter retains a 512-message per-page guard; exceeding it saves a partial capture. The global 100,000-message limit is removed.
 
-Manual CoreProtect commands are blocked during capture to avoid replacing its cached query. Avoid using the inspector at the same time. Pausing does not release the query; cancel first if you need a different command. After an uncertain result, CoreTrace waits for late responses before another capture. It does not retry timed-out pages or resume across servers. Query history lets you start a capture again.
+Manual CoreProtect commands are blocked during capture to avoid replacing its cached query. Avoid using the inspector at the same time. Pausing does not release the query; cancel first if you need a different command. After an uncertain result, CoreTrace waits for late responses before another capture. Transient recovery failures allow up to five attempts; a timeout during normal capture retains a partial result. Records are verified before resuming across addresses when enabled. Query history lets you start a capture again.
 
 This client reads received system messages. It does not access the database or add permissions. Automatic capture sends lookup commands; the queue can also send the custom command explicitly configured by the user. Exports remain local. It cannot guarantee a transactionally consistent database snapshot while the server's data changes. Custom messages, translations or incompatible plugin versions may require parser changes. The per-page guard remains at 512 messages; there is no global captured-message limit.
 
@@ -276,8 +329,12 @@ The project includes MIT-licensed source, these instructions and synthetic examp
 
 Build with **JDK 25** and the included wrapper: `./gradlew build` on Linux/macOS or `gradlew.bat build` on Windows. The standard configuration uses Loom 1.17.20 and Gradle 9.5.1. Alternatively run `python build-portable.py` using Python 3.10+ and JDK 25+ (`JAVA_HOME`). This alternative verifies published dependency hashes and compiles against the actual unobfuscated Minecraft 26.3 classes, Fabric and optional Mod Menu APIs. It also runs the tests. Install the ordinary JAR from `build/libs`, not a sources JAR.
 
-Version 1.7.6 built successfully with JDK 25.0.4 and Gradle (`gradlew.bat test build --offline`) and passed **190 automated tests**, with no failures or errors. All 70 JAR classes were verified as Java 25 bytecode (major version 69). In version 1.7.1 a generated workbook was opened in Microsoft Excel 16.0 to verify sheets, numeric coordinates, rows, quotes, line breaks and preservation of text that could resemble formulas. Excel tests also cover the custom filename across recovery, safe removal of task folders after the last task and command, cancellation with partial results, write failures, backup retention, different columns and sheet splitting. **The game UI and a live Minecraft/CoreProtect session remain untested.** Coverage still includes a simulated 5001-page capture with 105021 records and 115023 messages, export before completion, crash recovery and inspection recovery with the queue held on its current task.
+For the tested development client, use `gradlew.bat runClient -PwithoutModMenu`. This omits the optional runtime Mod Menu dependency: version 20.0.1, used to compile its API integration, does not support Minecraft 26.3 at runtime. F8 works without it.
 
-For your first server check, use a small known lookup and compare its last page and transcript with the chat output. The Spanish [README](README.md) contains the equivalent instructions in Spanish.
+Version 1.7.14 built successfully with JDK 25.0.4 and Gradle (`gradlew.bat test build --offline`) and passed **231 automated tests**, with no failures or errors. All JAR classes were verified as Java 25 bytecode (major version 69). In version 1.7.1 a generated workbook was opened in Microsoft Excel 16.0 to verify sheets, numeric coordinates, rows, quotes, line breaks and preservation of text that could resemble formulas. Excel tests also cover the custom filename across recovery, safe removal of task folders after the last task and command, cancellation with partial results, write failures, backup retention, different columns and sheet splitting. In 1.7.8, Capture and Smart Delay were visually checked in a Minecraft 26.3 development client at widths of 640, 854 and 1024 pixels, with no overlapping controls. Smart Delay and ETA toggles were tested by clicking. The main and Recovery menus had been verified in the previous release. ETA calculations and kick detection were tested automatically; the HUD during a capture and kicks against a live server still need verification. **Recovery against a live CoreProtect server remains untested end to end.** Coverage still includes a simulated 5001-page capture with 105021 records and 115023 messages, export before completion, crash recovery and inspection recovery with the queue held on its current task.
+
+For your first server check, use a small known lookup and compare its last page and transcript with the chat output. The Spanish [README](README_es.md) contains the equivalent instructions in Spanish.
 
 The working project lives directly in this directory. `src/` contains sources and tests; `gradle/` and wrapper scripts support builds. JARs are generated under `build/libs/`. Caches, build outputs and release archives are not source files. The first build after cache cleanup may need to download dependencies.
+
+In 1.7.9, the four statistics fields were checked geometrically at the narrow menu width (296 GUI pixels). The row was subsequently checked visually in 1.7.10 in a Minecraft development client. The factory reset button and confirmation were checked at 640 and 1024 pixels wide, including clicks to cancel and confirm in the development instance.

@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component;
 public final class MainScreen extends BaseScreen {
     private String draft;
     private EditBox query;
-    private Button start, pause, cancel, favorite;
+    private Button start, pause, cancel, favorite, resume, reset;
     public MainScreen(Screen parent, String draft) { super(parent, "ui.title.main"); this.draft = draft; }
     @Override protected void init() {
         super.init();
@@ -19,6 +19,8 @@ public final class MainScreen extends BaseScreen {
         query.setResponder(value -> draft = value);
         int third = (panelWidth - 12) / 3;
         start = button(tr("ui.start"), left, 76, third, () -> mod.start(query.getValue()));
+        resume = button(tr("ui.resume"), left + third + 6, 76, third, mod::resumeManually);
+        resume.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(tr("recovery.manual_hint"))));
         favorite = button(tr("ui.favorite.off"), left + third + 6, 76, third, () -> {
             var c = LookupCommand.fromInput(query.getValue());
             if (c.isEmpty()) { mod.noticeKey("notice.favorite_invalid"); return; }
@@ -33,12 +35,26 @@ public final class MainScreen extends BaseScreen {
         button(tr("ui.settings"), left, 157, third, () -> minecraft.gui.setScreen(new SettingsScreen(this)));
         button(tr("ui.last_export"), left + third + 6, 157, third, mod::openLast);
         button(tr("ui.export_folder"), left + (third + 6) * 2, 157, panelWidth - (third + 6) * 2, mod::openExports);
+        int resetWidth = Math.min(280, panelWidth);
+        reset = addRenderableWidget(new TraceButton(tr("reset.button"), left + (panelWidth - resetWidth) / 2,
+                height >= 270 ? 216 : 183, resetWidth, () -> minecraft.gui.setScreen(new net.minecraft.client.gui.screens.ConfirmScreen(
+                    accepted -> { if (accepted) mod.factoryReset(); minecraft.gui.setScreen(new MainScreen(parent, draft)); },
+                    Component.literal(tr("reset.title")), Component.literal(tr("reset.confirm")),
+                    Component.literal(tr("reset.button")), Component.literal(tr("reset.cancel"))))).danger());
+        reset.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(tr("reset.hint"))));
         button(tr("queue.title"), left, height - 28, (panelWidth - 6) / 2, () -> minecraft.gui.setScreen(new TaskQueueScreen(this)));
         button(tr("common.back"), left + (panelWidth - 6) / 2 + 6, height - 28, (panelWidth - 6) / 2, this::onClose);
+        tick();
         setInitialFocus(query);
     }
     @Override public void tick() {
-        boolean active = mod.active(); start.active = !mod.busy() && minecraft.getConnection() != null;
+        boolean active = mod.active();
+        reset.active = !mod.busy();
+        resume.visible = mod.resumable();
+        favorite.visible = !resume.visible;
+        resume.active = !mod.queueActive() && minecraft.getConnection() != null
+                && ((active && mod.engine().paused()) || !mod.busy());
+        start.active = !mod.busy() && minecraft.getConnection() != null;
         pause.active = active; cancel.active = mod.busy();
         pause.setMessage(Component.literal(tr(active && mod.engine().paused() ? "ui.resume" : "ui.pause")));
         boolean saved = LookupCommand.fromInput(query.getValue()).map(c -> mod.config().favorites.contains(c.command())).orElse(false);
@@ -58,7 +74,7 @@ public final class MainScreen extends BaseScreen {
             int fill = (int) ((long) panelWidth * engine.completedPages() / engine.totalPages());
             g.fill(left, 118, left + fill, 122, 0xFF2DD4BF);
         }
-        if (height >= 234) label(g, tr("ui.shortcuts", yes(mod.config().automatic)), left, 186, panelWidth, 0xFFB8C9D9);
-        if (height >= 255) label(g, tr("ui.server_requirement"), left, 200, panelWidth, 0xFF8298AE);
+        if (height >= 270) label(g, tr("ui.shortcuts", yes(mod.config().automatic)), left, 186, panelWidth, 0xFFB8C9D9);
+        if (height >= 270) label(g, tr("ui.server_requirement"), left, 200, panelWidth, 0xFF8298AE);
     }
 }

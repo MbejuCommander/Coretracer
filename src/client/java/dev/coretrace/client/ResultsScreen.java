@@ -28,10 +28,11 @@ final class ResultsScreen extends BaseScreen {
         button(tr("common.next"), left + third + 6, height - 54, third, () -> offset = Math.min(Math.max(0, wrapped.size() - visibleLines()), offset + visibleLines()));
         button(tr("ui.copy_filtered"), left + (third + 6) * 2, height - 54, panelWidth - (third + 6) * 2,
                 () -> { minecraft.keyboardHandler.setClipboard(String.join("\n", matches)); mod.noticeKey("notice.copied"); });
+        button(tr("report.open"), left, height - 80, panelWidth, mod::openLastErrorReport);
         button(tr("common.back"), left, height - 28, panelWidth, this::onClose);
         refresh();
     }
-    private int visibleLines() { return Math.max(1, (height - 148) / 11); }
+    private int visibleLines() { return Math.max(1, (height - 175) / 11); }
     private void refresh() {
         if (search == null) return;
         String term = search.getValue().toLowerCase(Locale.ROOT);
@@ -50,8 +51,8 @@ final class ResultsScreen extends BaseScreen {
     @Override public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         super.extractRenderState(g, mx, my, delta);
         label(g, tr("ui.results_count", matches.size()), left, 69, panelWidth, 0xFF8298AE);
-        g.fill(left, 83, left + panelWidth, height - 63, 0xFF0B1420);
-        g.enableScissor(left, 83, left + panelWidth, height - 63);
+        g.fill(left, 83, left + panelWidth, height - 90, 0xFF0B1420);
+        g.enableScissor(left, 83, left + panelWidth, height - 90);
         for (int i = offset; i < Math.min(wrapped.size(), offset + visibleLines()); i++)
             g.text(font, wrapped.get(i), left + 5, 88 + (i - offset) * 11, 0xFFD9E6F3);
         g.disableScissor();

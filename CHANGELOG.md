@@ -1,3 +1,53 @@
+## 1.7.14 — Paused queue edits and error reports / Edición de cola pausada e informes de error
+
+- Allow adding, copying, editing, removing and reordering only pending tasks while Task Queue is paused. Save each change to the recovery checkpoint before applying it; leave the current task untouched. Removing the final pending task after the current task has finished completes the queue safely.
+- Generate a local, shareable error report for terminal capture, recovery, storage and queue failures. Include internal reason codes, page and retry counts and a bounded event timeline without commands, server addresses or captured messages. Open the latest report from View records.
+- Do not generate a report for a spam kick or transient recovery failure that the mod resolves automatically.
+
+## 1.7.13 — Reliable Smart CSV resume / Reanudación fiable de CSV inteligente
+
+- Compare parsed CoreProtect coordinates and action hints when matching saved records after reconnection; ignore visual spacing that changes as relative time grows.
+- Keep UTC timestamps, action details and consecutive-record verification. Add a regression test based on the 213-page session that stopped after its coordinate caret shifted by one space.
+
+## 1.7.12 — Configurable Smart Delay stability / Estabilidad configurable de Smart Delay
+
+- Replace the post-spam-kick stability periods with 30, 60, 90 and 120 seconds by default; cap every configured period at two minutes.
+- Add four editable periods in Settings → Capture → Smart Delay → Post-kick stability, including per-task settings and default restoration.
+- Clamp previously saved longer holds to the configured period for their kick count when loading learning profiles.
+
+## 1.7.11 — Per-page Smart Delay variation / Variación por página de Smart Delay
+
+- Vary CoreProtect page waits by 0%, +5% and +10% around the learned baseline, with the configured minimum and 30000 ms cap.
+- Increase the baseline by 1.5 times the last selected page wait after a spam kick; keep the existing stabilization periods.
+- Group recent minimum, average and maximum under Last 3 commands; show the next planned wait separately. Persist the variation position with learning profiles.
+
+## 1.7.10 — Adaptive probing and factory reset / Aprendizaje adaptable y restablecimiento
+
+- Reduce delay by 10% after six stable windows, switching to 2% near a previously problematic delay.
+- Replace the permanent learned floor with a persisted hold requiring 2/4/8/16 minutes of confirmed activity after spam kicks. Preserve the configured minimum and exclude idle time.
+- Add a red main-menu factory reset button with confirmation and an active-operation guard. Restore global preferences and clear Smart Delay learning while preserving task profiles, current tasks, favorites, history, exports and recovery data.
+
+## 1.7.9 — Recent Smart Delay statistics / Estadísticas recientes de Smart Delay
+
+- Set the default editable minimum to 240 ms; preserve existing user settings.
+- Show minimum, average and maximum of the last three CoreProtect page delays plus the next planned delay. Keep samples in the selected global/server learning profile across sessions.
+- Remove the ambiguous historical minimum and safety reference from the menu.
+
+## 1.7.8 — Smart Delay and ETA / Smart Delay y ETA
+
+- Add an off-by-default Smart Delay switch, configurable spam kick phrase, minimum (300 ms by default) and observation window (5 seconds by default).
+- Persist one global learning profile by default, with optional profiles per server address and a reset button. Adapt page pacing after stable windows and spam kicks; leave custom-command and task delays unchanged.
+- Add an on-by-default HUD with hours:minutes:seconds and current-task progress, including paused/recovery states and lightweight smoothed timing.
+- Add compact Capture and Smart Delay layouts for smaller windows, with bilingual labels and tooltips.
+
+## 1.7.7 — Manual and cross-address recovery / Reanudación manual y entre direcciones
+
+- Add Resume beside Start capture for paused or recoverable simple captures; keep normal button widths by temporarily replacing Favorite.
+- Allow another server address by default when Smart CSV can validate saved records. Add the Recovery toggle and a delayed explanatory notice two seconds after the resume message.
+- Limit automatic recovery to five attempts, retain partial data, and allow manual retry. A proven record mismatch stops immediately.
+- Replace the 12-page prefix search limit with timestamp and event-sequence verification. Stage new front entries on disk until both overlaps are verified; export in batches and persist physical page offsets for subsequent recovery.
+- Verify menu layout in a Minecraft 26.3 development client at 854- and 640-pixel widths.
+
 ## 1.7.6 — Configurable Smart CSV retries / Reintentos configurables de CSV inteligente
 
 - Set the shifted-result retry limit in Settings → Recovery (1–10, default 5, blank 5). Existing configurations inherit 5.
@@ -148,4 +198,5 @@
 **1.0.0**
 
 - Initial client-only pagination, transcript, summary, basic CSV, query history and menu.
+
 

@@ -39,6 +39,14 @@ public final class CoreTraceClient implements ClientModInitializer {
         Thread t = new Thread(r, "CoreTrace-files"); t.setDaemon(true); return t;
     });
     private Config config;
+    private SmartDelayStore delayStore = new SmartDelayStore();
+    private Path delayStorePath;
+    private SmartDelay smartDelay;
+    private final CaptureEta eta = new CaptureEta();
+    private long etaRefreshAt, etaFinishedUntil;
+    private String etaText = "";
+    private boolean etaComplete;
+    private long delaySavedAt;
     private Path configPath, exports;
     private CaptureEngine engine;
     private TaskQueue taskQueue;
@@ -52,6 +60,7 @@ public final class CoreTraceClient implements ClientModInitializer {
     private Object[] feedbackArgs = new Object[0];
     private Path lastDirectory;
     private Path lastExportFile;
+    private volatile Path lastErrorReport;
     private net.minecraft.client.resources.sounds.SoundInstance preview;
     private KeyMapping key;
     private long readyAfter;
@@ -62,6 +71,9 @@ public final class CoreTraceClient implements ClientModInitializer {
     private ResumeCountdown resumeCountdown;
     private long resumeZeroAt = -1;
     private boolean recoveryWaiting, restoring;
+    private final ResumePolicy resumePolicy = new ResumePolicy();
+    private boolean manualResume;
+    private final RecoveryNotice recoveryAddressNotice = new RecoveryNotice();
     private int recoveryGeneration;
     private net.minecraft.client.multiplayer.ServerData reconnectServer;
     private ReconnectPlan reconnectPlan;
@@ -71,9 +83,16 @@ public final class CoreTraceClient implements ClientModInitializer {
         volatile boolean failed;
         boolean cancelRequested;
         boolean skipCurrent;
+        boolean checkingRecovery;
         boolean stopQueueAfterSave;
         final java.util.concurrent.atomic.AtomicInteger work = new java.util.concurrent.atomic.AtomicInteger();
+        private final java.util.ArrayDeque<String> events = new java.util.ArrayDeque<>();
         Context(Path path, Language language, Config config) { files = new SessionFiles(path, language, config); }
+        synchronized void event(String code, int page) {
+            if (events.size() == 16) events.removeFirst();
+            events.addLast(code + ".page_" + Math.max(0, page));
+        }
+        synchronized java.util.List<String> events() { return java.util.List.copyOf(events); }
     }
     @FunctionalInterface private interface IoAction { void run() throws IOException; }
 
@@ -83,6 +102,9 @@ public final class CoreTraceClient implements ClientModInitializer {
         exports = FabricLoader.getInstance().getGameDir().resolve("coretrace/exports").toAbsolutePath();
         try { config = Config.load(configPath); }
         catch (IOException e) { config = new Config(); setFeedback("notice.config_load"); LOGGER.warn(tr("notice.config_load"), e); }
+        delayStorePath = exports.getParent().resolve("smart-delay.json");
+        try { delayStore = SmartDelayStore.load(delayStorePath); }
+        catch (IOException e) { LOGGER.warn("Cannot load Smart Delay learning", e); }
         recoveryStore = new RecoveryStore(exports.getParent().resolve("recovery.json"), exports);
         try { recovery = recoveryStore.load(); recoveryWaiting = recovery != null; }
         catch (IOException e) { LOGGER.warn("Cannot load CoreTrace recovery", e); setFeedback("recovery.load_failed"); }
@@ -94,6 +116,16 @@ public final class CoreTraceClient implements ClientModInitializer {
                         graphics.centeredText(mc.font, tr("recovery.countdown", active() && engine.inspectionCountdown() != null
                                 ? engine.inspectionSeconds(now()) : countdown.seconds(now())),
                                 mc.getWindow().getGuiScaledWidth() / 2, mc.getWindow().getGuiScaledHeight() / 2 + 18, 0xFFFF5555);
+                    }
+                });
+        net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
+                Identifier.fromNamespaceAndPath("coretrace", "capture_eta"), (graphics, delta) -> {
+                    var mc = Minecraft.getInstance();
+                    if (mc.player != null && config.showEta && captureConfig != null && captureConfig.showEta
+                            && (active() || saving || now() < etaFinishedUntil)) {
+                        if (now() >= etaRefreshAt) { etaText = captureEtaText(); etaRefreshAt = now() + 1000; }
+                        graphics.centeredText(mc.font, etaText, mc.getWindow().getGuiScaledWidth() / 2,
+                                mc.getWindow().getGuiScaledHeight() - 72, 0xFFE3EFF5);
                     }
                 });
         if (!config.lastExportFile.isBlank()) {
@@ -148,6 +180,7 @@ public final class CoreTraceClient implements ClientModInitializer {
             while (key.consumeClick()) openPending = true;
             if (openPending) { openPending = false; client.gui.setScreen(new MainScreen(client.gui.screen(), null)); }
             if (active()) {
+                if (engine.paused() || engine.recovering()) { eta.interrupt(); if (smartDelay != null) smartDelay.interrupt(); }
                 var countdown = engine.inspectionCountdown();
                 if (countdown != null && !engine.paused() && countdown.soundDue(now())) playConfiguredSound("minecraft:entity.experience_orb.pickup");
                 engine.tick(now());
@@ -161,6 +194,13 @@ public final class CoreTraceClient implements ClientModInitializer {
             reconnectPlan = null; reconnectFailureScreen = null;
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            var details = handler.getConnection().getDisconnectionDetails();
+            if (active() && smartDelay != null && details != null
+                    && smartDelay.disconnected(details.reason().getString(), captureConfig.smartDelayKickMessage, now())) {
+                readyAfter = Math.max(readyAfter, smartDelay.state().cooldownUntil);
+                LOGGER.info("Spam kick detected; Smart Delay increased to {} ms", smartDelay.delay());
+            }
+            saveDelayLearning();
             disconnected("reason.disconnected");
             if (config.autoReconnect && reconnectServer != null && !reconnectServer.isRealm()) {
                 reconnectPlan = new ReconnectPlan(config.reconnectDelayMs, config.reconnectAttempts);
@@ -168,6 +208,7 @@ public final class CoreTraceClient implements ClientModInitializer {
             }
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            saveDelayLearning();
             disconnected("reason.shutdown");
             io.shutdown();
             try { if (!io.awaitTermination(4, TimeUnit.SECONDS)) LOGGER.warn(tr("notice.unfinished_writes")); }
@@ -184,7 +225,7 @@ public final class CoreTraceClient implements ClientModInitializer {
                 }))
                 .then(literal("resume").executes(c -> {
                     if (queuePaused()) toggleQueuePause();
-                    else if (!queueActive() && active() && engine.paused()) togglePause(); return 1;
+                    else if (!queueActive()) resumeManually(); return 1;
                 }))
                 .then(literal("cancel").executes(c -> { cancel(); return 1; }))
                 .then(literal("folder").executes(c -> { openExports(); return 1; }))
@@ -217,8 +258,14 @@ public final class CoreTraceClient implements ClientModInitializer {
                 NAME.format(Instant.ofEpochMilli(started)) + "-" + UUID.randomUUID().toString().substring(0, 8)); }
         catch (IOException e) { noticeKey("notice.save_failed"); return false; }
         captureConfig = runConfig;
+        smartDelay = runConfig.smartDelay ? new SmartDelay(delayStore.state(runConfig.smartDelayPerServer, server), runConfig.delayMs, runConfig.smartDelayMinimumMs, runConfig.smartDelayWindowSeconds, runConfig.smartDelayHoldSeconds) : null;
+        eta.interrupt(); etaComplete = false; etaFinishedUntil = 0; etaRefreshAt = 0;
         var settings = runConfig.settings();
         Context ctx = new Context(path, settings.language(), runConfig); context = ctx;
+        ctx.checkingRecovery = resumed != null;
+        ctx.event(resumed == null ? "capture_started" : "resume_started",
+                resumed == null ? command.firstPage() : resumed.page());
+        if (resumed == null) { resumePolicy.reset(); manualResume = false; recoveryAddressNotice.cancel(); }
         TaskQueue owner = task == null ? null : taskQueue;
         QueueExcel workbook = owner == null ? null : queueExcel;
         int excelTaskIndex = owner == null ? -1 : owner.position() - 1;
@@ -242,7 +289,11 @@ public final class CoreTraceClient implements ClientModInitializer {
         CaptureEngine.Sink sink = new CaptureEngine.Sink() {
             @Override public void send(String text) {
                 checkpointCapture(engine.expectedPage(), engine.totalPages(), null);
+                if (smartDelay != null && LookupCommand.parse(text).filter(c -> !c.query()).isPresent()) smartDelay.pageCommand();
                 sendLookup(text);
+            }
+            @Override public java.util.List<MessageData> prefixBuffer() {
+                return new PrefixJournal.Buffer(ctx.files.directory(), action -> queue(ctx, action::run));
             }
             @Override public java.util.List<CaptureEngine.Page> history(int first) { return ctx.files.history(first); }
             @Override public boolean ready() { return !ctx.failed && ctx.work.get() < 4; }
@@ -253,9 +304,9 @@ public final class CoreTraceClient implements ClientModInitializer {
                 noticeKey("smart.refresh");
             }
             @Override public void replaceFirst(CaptureEngine.Page page, int nextPage,
-                                               java.util.List<MessageData> newEntries) {
-                queue(ctx, () -> ctx.files.replaceFirst(page, command.command(), nextPage, newEntries));
-                checkpointCapture(nextPage, engine.totalPages(), null);
+                                               java.util.List<MessageData> newEntries, int offset) {
+                queue(ctx, () -> ctx.files.replaceFirst(page, command.command(), nextPage, newEntries, offset));
+                checkpointCapture(engine.totalPages() > 0 ? Math.min(nextPage, engine.totalPages()) : nextPage, engine.totalPages(), null);
             }
             @Override public void recovering(int page) {
                 checkpointCapture(page, engine.totalPages(), null);
@@ -276,10 +327,28 @@ public final class CoreTraceClient implements ClientModInitializer {
                 noticeKey("inspect.resuming");
             }
             @Override public void page(CaptureEngine.Page p) {
+                ctx.event(p.confirmed() ? "page_confirmed" : "page_partial", p.number());
+                if (ctx.checkingRecovery && p.confirmed()) { ctx.checkingRecovery = false; resumePolicy.reset(); manualResume = false; }
+                if (p.confirmed()) {
+                    eta.page(now());
+                    if (smartDelay != null) {
+                        smartDelay.confirmed(now());
+                        if (now() - delaySavedAt >= 30000) saveDelayLearning();
+                    }
+                }
                 queue(ctx, () -> ctx.files.page(p));
                 checkpointCapture(p.confirmed() && p.number() < engine.totalPages() ? p.number() + 1 : p.number(), engine.totalPages(), null);
             }
             @Override public void finish(CaptureEngine.Snapshot snapshot) {
+                ctx.event("capture_finished", engine.nextRecoveryPage());
+                etaComplete = false; etaFinishedUntil = 0; etaRefreshAt = 0;
+                saveDelayLearning();
+                DiagnosticReport.Incident incident = (DiagnosticReport.reportable(snapshot.outcome(),
+                        ctx.checkingRecovery, resumePolicy.exhausted())
+                        || snapshot.outcome() == CaptureEngine.Outcome.LIMIT
+                        && "reason.memory_limit".equals(engine.diagnosticCode()))
+                        ? incident("capture", engine.diagnosticCode(), snapshot.pages().size(),
+                                snapshot.totalPages(), ctx.events(), null) : null;
                 if (!snapshot.outcome().successful()
                         && snapshot.outcome() != CaptureEngine.Outcome.DISCONNECTED)
                     readyAfter = now() + runConfig.timeoutMs;
@@ -290,8 +359,23 @@ public final class CoreTraceClient implements ClientModInitializer {
                     // Publish Excel BEFORE advancing the queue or discarding recovery pages.
                     // Failure leaves both the recovery pointer and the last valid workbook intact.
                     if (workbook != null) workbook.saveTask(excelTaskIndex, runConfig.csvFileName, ctx.files.csvPaths());
+                    if (incident != null) try {
+                        Path report = DiagnosticReport.write(ctx.files.directory(), incident);
+                        mc.execute(() -> lastErrorReport = report);
+                    } catch (IOException reportError) { LOGGER.warn("Cannot save CoreTrace error report", reportError); }
                     mc.execute(() -> {
                         saving = false;
+                        etaComplete = snapshot.outcome().successful();
+                        etaFinishedUntil = etaComplete ? now() + 3000 : 0; etaRefreshAt = 0;
+                        if (ctx.checkingRecovery && !snapshot.outcome().successful()
+                                && snapshot.outcome() != CaptureEngine.Outcome.CANCELLED) {
+                            if (snapshot.outcome() == CaptureEngine.Outcome.MISMATCH) resumePolicy.stop();
+                            recoveryWaiting = !resumePolicy.exhausted();
+                            if (!recoveryWaiting && snapshot.outcome() != CaptureEngine.Outcome.MISMATCH)
+                                noticeKey("recovery.attempts_exhausted");
+                            readyAfter = Math.max(readyAfter, now() + 4000);
+                        }
+                        if (snapshot.outcome().successful()) { resumePolicy.reset(); manualResume = false; }
                         if (snapshot.outcome().successful() && runConfig.resetCsvNameAfterExport) {
                             if (task == null) config.csvFileName = CsvFileNames.afterExport(config.csvFileName, runConfig.csvFileName, true);
                             if (task != null && config.tasks.contains(task)) task.csvName = CsvFileNames.afterExport(task.csvName, runConfig.csvFileName, true);
@@ -327,6 +411,8 @@ public final class CoreTraceClient implements ClientModInitializer {
         engine = resumed == null ? new CaptureEngine(command, settings, sink, server, started)
                 : CaptureEngine.resume(command, settings, sink, server, started, resumed.startedAt(),
                         resumed.page(), resumed.total(), recoveredPages);
+        if (resumed != null) engine.restorePageOffset(resumed.pageOffset());
+        if (smartDelay != null) engine.configureDelay(smartDelay::delay);
         engine.configureInspectionRecovery(runConfig.inspectRecovery, runConfig.autoResumeDelayMs);
         engine.configureSmartStablePages(runConfig.smartStablePages);
         engine.configureSmartShiftRetries(runConfig.smartShiftRetries);
@@ -336,6 +422,7 @@ public final class CoreTraceClient implements ClientModInitializer {
         playConfiguredSound(runConfig.startSound);
         noticeKey("notice.capturing", command.command());
         if (send) sendLookup(command.command());
+        else if (smartDelay != null) smartDelay.command(now());
         return true;
     }
     private void sendLookup(String command) {
@@ -348,8 +435,11 @@ public final class CoreTraceClient implements ClientModInitializer {
             disconnected("reason.no_connection");
             return;
         }
-        ownCommand = true;
-        try { mc.getConnection().sendCommand(command); }
+        ownCommand = true; commandCancelled = false;
+        try {
+            mc.getConnection().sendCommand(command);
+            if (smartDelay != null && !commandCancelled) smartDelay.command(now());
+        }
         finally { ownCommand = false; }
     }
     private void queue(Context ctx, IoAction action) {
@@ -359,6 +449,12 @@ public final class CoreTraceClient implements ClientModInitializer {
             catch (Exception error) {
                 ctx.failed = true;
                 try { ctx.files.close(); } catch (IOException closeError) { error.addSuppressed(closeError); }
+                try {
+                    Path report = DiagnosticReport.write(ctx.files.directory(), new DiagnosticReport.Incident(
+                            modVersion(), now(), "storage", "write_failed", 0, 0, 0, 0, 0, 0, 0,
+                            false, ctx.events(), error));
+                    Minecraft.getInstance().execute(() -> lastErrorReport = report);
+                } catch (IOException reportError) { LOGGER.warn("Cannot save CoreTrace storage report", reportError); }
                 LOGGER.error(tr("notice.write_error"), error);
                 Minecraft.getInstance().execute(() -> {
                     if (context == ctx) {
@@ -391,12 +487,78 @@ public final class CoreTraceClient implements ClientModInitializer {
         if (preview != null) Minecraft.getInstance().getSoundManager().stop(preview);
         preview = null;
     }
+    public void factoryReset() {
+        if (busy()) { noticeKey("reset.busy"); return; }
+        Config fresh = config.factoryDefaults();
+        try { fresh.save(configPath); }
+        catch (IOException e) { noticeKey("notice.config_save", e.getMessage()); return; }
+        config = fresh; delayStore = new SmartDelayStore(); smartDelay = null;
+        saveDelayLearning(); stopPreview(); reconnectPlan = null;
+        setFeedback("reset.done");
+    }
     public void saveConfig() {
         try { config.save(configPath); }
         catch (IOException e) { noticeKey("notice.config_save", e.getMessage()); LOGGER.warn("Config", e); }
     }
-    public void togglePause() { if (active()) engine.togglePause(now()); }
+    public void togglePause() { if (active()) { eta.interrupt(); if (smartDelay != null) smartDelay.interrupt(); engine.togglePause(now()); } }
+    private String captureEtaText() {
+        String value;
+        if (etaComplete) value = "00:00:00";
+        else if (saving) value = tr("eta.saving");
+        else if (engine.paused()) value = tr("eta.paused");
+        else if (engine.recovering()) value = tr("eta.recovering");
+        else {
+            long seconds = eta.seconds(engine.completedPages(), engine.totalPages());
+            value = seconds < 0 ? tr("eta.calculating") : CaptureEta.time(seconds);
+        }
+        return "ETA " + value + " · " + CaptureEta.percent(engine.completedPages(), engine.totalPages(), etaComplete) + " %";
+    }
+    SmartDelay delayLearning(Config settings) {
+        return new SmartDelay(SmartDelay.copy(delayStore.state(settings.smartDelayPerServer, serverKey())), settings.delayMs, settings.smartDelayMinimumMs, settings.smartDelayWindowSeconds, settings.smartDelayHoldSeconds);
+    }
+    void resetDelayLearning(Config settings) {
+        delayStore.reset(settings.smartDelayPerServer, serverKey());
+        if (active() && captureConfig.smartDelay && captureConfig.smartDelayPerServer == settings.smartDelayPerServer) {
+            smartDelay = new SmartDelay(delayStore.state(settings.smartDelayPerServer, serverKey()), captureConfig.delayMs, captureConfig.smartDelayMinimumMs, captureConfig.smartDelayWindowSeconds, captureConfig.smartDelayHoldSeconds);
+            engine.configureDelay(smartDelay::delay);
+        }
+        saveDelayLearning();
+    }
+    private void saveDelayLearning() {
+        if (delayStorePath == null || io.isShutdown()) return;
+        String json = delayStore.json(); delaySavedAt = now();
+        io.execute(() -> {
+            try { Files.createDirectories(delayStorePath.getParent()); SessionFiles.writeAtomic(delayStorePath, json); }
+            catch (IOException e) { LOGGER.warn("Cannot save Smart Delay learning", e); }
+        });
+    }
     public boolean queuePaused() { return queueActive() && taskQueue.paused(); }
+    public boolean canEditQueuePending() { return queuePaused() && !saving && !restoring; }
+    public int queueCurrentIndex() { return queueActive() ? taskQueue.position() - 1 : -1; }
+    public java.util.List<TaskDefinition> queueTasks() {
+        return queueActive() ? taskQueue.snapshot(now()).tasks() : java.util.List.of();
+    }
+    public java.util.List<TaskDefinition> queuePendingTasks() {
+        var result = new java.util.ArrayList<TaskDefinition>();
+        if (queueActive()) for (TaskDefinition task : queueTasks().subList(taskQueue.position(), taskQueue.size()))
+            result.add(task.copy());
+        return result;
+    }
+    public boolean replacePendingTasks(java.util.List<TaskDefinition> pending) {
+        if (!canEditQueuePending()) return false;
+        try {
+            var frozen = new java.util.ArrayList<TaskDefinition>();
+            for (TaskDefinition item : pending) {
+                TaskDefinition task = item.copy(); task.validate();
+                Config effective = task.effective(config);
+                task.universalSettings = false; task.taskSettings = effective;
+                task.csvSettings = effective.captureCopy();
+                frozen.add(task);
+            }
+            if (taskQueue.replacePending(frozen, now())) return true;
+        } catch (IllegalArgumentException e) { LOGGER.warn("Invalid pending task edit", e); }
+        noticeKey("queue.edit_failed"); return false;
+    }
     public boolean canSkipCurrentTask() { return queueActive() && taskQueue.canSkipCurrent() && !saving; }
     public void toggleQueuePause() {
         if (!queueActive()) return;
@@ -453,6 +615,57 @@ public final class CoreTraceClient implements ClientModInitializer {
                     config.lastExportFile = file.toString(); saveConfig(); openDirectory(lastDirectory);
                 });
             } catch (IOException e) { Minecraft.getInstance().execute(() -> folderError(exports, e)); }
+        });
+    }
+    public boolean hasErrorReport() { return lastErrorReport != null && Files.isRegularFile(lastErrorReport); }
+    public void openLastErrorReport() {
+        io.execute(() -> {
+            Path found = null;
+            try {
+                if (hasErrorReport()) found = lastErrorReport;
+                else if (Files.isDirectory(exports)) try (var paths = Files.walk(exports, 2)) {
+                    found = paths.filter(Files::isRegularFile)
+                            .filter(p -> p.getFileName().toString().matches("error-report-[0-9]{8}-[0-9]{6}-[0-9]{3}-[a-f0-9]{8}\\.txt"))
+                            .sorted(java.util.Comparator.comparingLong(CoreTraceClient::modifiedAt).reversed()).findFirst().orElse(null);
+                }
+                Path report = found;
+                Minecraft.getInstance().execute(() -> {
+                    if (report == null) { noticeKey("report.none"); return; }
+                    lastErrorReport = report;
+                    try {
+                        if (org.lwjgl.sdl.SDLMisc.SDL_OpenURL(report.toUri().toASCIIString())) return;
+                        openDirectory(report.getParent());
+                    } catch (Exception e) { folderError(report, e); }
+                });
+            } catch (IOException e) { Minecraft.getInstance().execute(() -> folderError(exports, e)); }
+        });
+    }
+    private static String modVersion() {
+        return FabricLoader.getInstance().getModContainer("coretrace")
+                .map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("unknown");
+    }
+    private DiagnosticReport.Incident incident(String category, String code, int pages, int total,
+                                                java.util.List<String> events, Throwable error) {
+        return new DiagnosticReport.Incident(modVersion(), now(), category, code, pages, total,
+                queueActive() ? taskQueue.position() : 0, queueActive() ? taskQueue.size() : 0,
+                resumePolicy.attempts(), smartDelay == null ? 0 : smartDelay.state().kickCount,
+                smartDelay == null ? 0 : smartDelay.delay(), captureConfig != null && captureConfig.smartCsvEnabled(),
+                events, error);
+    }
+    private void reportOperationFailure(String category, String code, Throwable error) {
+        int savedPages = active() ? engine.completedPages() : recovery != null && recovery.capture() != null
+                ? Math.max(0, recovery.capture().page() - 1) : 0;
+        int totalPages = active() ? engine.totalPages() : recovery != null && recovery.capture() != null
+                ? recovery.capture().total() : 0;
+        DiagnosticReport.Incident report = incident(category, code,
+                savedPages, totalPages,
+                context == null ? java.util.List.of() : context.events(), error);
+        Path directory = queueExcel != null ? queueExcel.file().getParent() : exports;
+        io.execute(() -> {
+            try {
+                Path file = DiagnosticReport.write(directory, report);
+                Minecraft.getInstance().execute(() -> lastErrorReport = file);
+            } catch (IOException writeError) { LOGGER.warn("Cannot save CoreTrace error report", writeError); }
         });
     }
     private static long modifiedAt(Path path) {
@@ -516,23 +729,33 @@ public final class CoreTraceClient implements ClientModInitializer {
     }
     private void createTaskQueue(java.util.List<TaskDefinition> tasks, int delay, String finishSound,
             java.util.List<TaskDefinition> originals) {
+        var originalsByTask = new java.util.IdentityHashMap<TaskDefinition, TaskDefinition>();
+        if (originals != null) for (int i = 0; i < Math.min(tasks.size(), originals.size()); i++)
+            originalsByTask.put(tasks.get(i), originals.get(i));
         taskQueue = new TaskQueue(tasks, delay, new TaskQueue.Host() {
             public boolean start(TaskDefinition task) {
                 int current = taskQueue.position() - 1;
                 boolean deferred = taskQueue.paused();
                 boolean started = begin(LookupCommand.parse(task.command).orElseThrow(), !deferred, task.effective(config),
-                        originals == null ? task : originals.get(current));
+                        originalsByTask.getOrDefault(task, task));
                 if (started && deferred) {
                     queueCaptureAwaitingCommand = true;
                     engine.togglePause(now());
                 }
+                if (!started) reportOperationFailure("queue", "task_start_failed", null);
                 return started;
             }
             public boolean command(String command) {
                 var mc = Minecraft.getInstance();
-                if (mc.getConnection() == null || mc.player == null) { noticeKey("queue.command_failed"); return false; }
+                if (mc.getConnection() == null || mc.player == null) {
+                    noticeKey("queue.command_failed"); reportOperationFailure("queue", "custom_command_failed", null); return false;
+                }
                 ownCommand = true; commandCancelled = false;
-                try { mc.getConnection().sendCommand(command); if (commandCancelled) noticeKey("queue.command_failed"); return !commandCancelled; }
+                try {
+                    mc.getConnection().sendCommand(command);
+                    if (commandCancelled) { noticeKey("queue.command_failed"); reportOperationFailure("queue", "custom_command_failed", null); }
+                    return !commandCancelled;
+                }
                 finally { ownCommand = false; }
             }
             @Override public boolean readyForNextTask() { return now() >= readyAfter; }
@@ -589,7 +812,7 @@ public final class CoreTraceClient implements ClientModInitializer {
     }
     private void checkpointCapture(int page, int total, CaptureEngine.Page completed) {
         if (recovery == null || recovery.capture() == null || context == null) return;
-        recovery = recovery.withCapture(recovery.capture().at(page, total));
+        recovery = recovery.withCapture(recovery.capture().at(page, total, engine == null ? recovery.capture().pageOffset() : engine.recoveryPageOffset()));
         var saved = recovery;
         queue(context, () -> {
             if (completed != null) recoveryStore.writePage(saved.capture(), completed);
@@ -614,8 +837,9 @@ public final class CoreTraceClient implements ClientModInitializer {
         }
     }
     private void disconnected(String reason) {
+        if (context != null && active()) context.event("disconnected", engine.nextRecoveryPage());
         queueCaptureAwaitingCommand = false;
-        ++recoveryGeneration; restoring = false; resumeCountdown = null;
+        ++recoveryGeneration; restoring = false; resumeCountdown = null; recoveryAddressNotice.cancel();
         if (queueActive() && recovery != null) recovery = recovery.withQueue(taskQueue.snapshot(now()));
         if (active()) checkpointCapture(engine.nextRecoveryPage(), engine.totalPages(), null);
         else if (recovery != null) persistRecovery(false);
@@ -625,6 +849,7 @@ public final class CoreTraceClient implements ClientModInitializer {
     }
     public boolean hasRecovery() { return recovery != null; }
     public void discardRecovery() {
+        recoveryAddressNotice.cancel();
         ++recoveryGeneration; recoveryWaiting = false; restoring = false; resumeCountdown = null;
         resumeStarting = null; recoveredPages = java.util.List.of(); recovery = null; persistRecovery(false);
     }
@@ -650,10 +875,29 @@ public final class CoreTraceClient implements ClientModInitializer {
                 mc, net.minecraft.client.multiplayer.resolver.ServerAddress.parseString(reconnectServer.ip),
                 reconnectServer, false, null);
     }
+    private boolean recoveryServerAllowed() {
+        return ResumePolicy.allows(recovery, serverKey(), config.resumeAcrossServers);
+    }
+    public boolean resumable() { return !queueActive() && (active() ? engine.paused() : recovery != null); }
+    public void resumeManually() {
+        if (active()) { if (engine.paused()) togglePause(); return; }
+        if (saving || restoring || queueActive() || recovery == null) return;
+        if (!recoveryServerAllowed()) { noticeKey("recovery.address_blocked"); return; }
+        manualResume = true; recoveryWaiting = true; resumePolicy.reset();
+    }
     private void recoveryTick() {
         var mc = Minecraft.getInstance();
-        if (!config.autoResume || !recoveryWaiting || recovery == null || mc.player == null
-                || mc.getConnection() == null || !serverKey().equals(recovery.server())) { resumeCountdown = null; return; }
+        if (recoveryAddressNotice.poll(now())) {
+            if (config.resumeAcrossServers && mc.player != null && recovery != null)
+                mc.gui.hud.getChat().addClientSystemMessage(Component.literal("[CoreTrace] " + tr("recovery.cross_server_notice"))
+                        .withStyle(net.minecraft.ChatFormatting.RED));
+        }
+        if ((!config.autoResume && !manualResume) || resumePolicy.exhausted() || !recoveryWaiting || recovery == null || mc.player == null
+                || mc.getConnection() == null || !recoveryServerAllowed()) { resumeCountdown = null; return; }
+        if (recovery.capture() != null && recovery.capture().config().smartDelay) {
+            Config savedSettings = recovery.capture().config();
+            readyAfter = Math.max(readyAfter, delayStore.state(savedSettings.smartDelayPerServer, serverKey()).cooldownUntil);
+        }
         if (active() || queueActive() || saving || restoring || now() < readyAfter) return;
         if (resumeCountdown == null || resumeCountdown.delay() != config.autoResumeDelayMs) {
             resumeCountdown = new ResumeCountdown(now(), config.autoResumeDelayMs);
@@ -661,6 +905,7 @@ public final class CoreTraceClient implements ClientModInitializer {
             playConfiguredSound("minecraft:entity.experience_orb.pickup");
             mc.gui.hud.getChat().addClientSystemMessage(Component.literal("[CoreTrace] " + tr("recovery.warning",
                     config.autoResumeDelayMs)).withStyle(net.minecraft.ChatFormatting.RED));
+            if (config.resumeAcrossServers) recoveryAddressNotice.schedule(now());
         }
         if (resumeCountdown.soundDue(now())) playConfiguredSound("minecraft:entity.experience_orb.pickup");
         if (resumeCountdown.remaining(now()) == 0) {
@@ -670,6 +915,7 @@ public final class CoreTraceClient implements ClientModInitializer {
     }
     private void restoreRecovery() {
         var state = recovery;
+        if (!resumePolicy.attempt()) return;
         int generation = ++recoveryGeneration;
         resumeCountdown = null; restoring = true;
         io.execute(() -> {
@@ -679,8 +925,8 @@ public final class CoreTraceClient implements ClientModInitializer {
                 Minecraft.getInstance().execute(() -> {
                     if (generation != recoveryGeneration) return;
                     restoring = false;
-                    if (!config.autoResume || !recoveryWaiting || Minecraft.getInstance().getConnection() == null
-                            || !serverKey().equals(state.server())) return;
+                    if ((!config.autoResume && !manualResume) || !recoveryWaiting || Minecraft.getInstance().getConnection() == null
+                            || !recoveryServerAllowed()) return;
                     recoveryWaiting = false;
                     resumeStarting = state.capture(); recoveredPages = pages; queueExcel = workbook;
                     playConfiguredSound("minecraft:entity.villager.yes");
@@ -693,13 +939,19 @@ public final class CoreTraceClient implements ClientModInitializer {
                                 state.capture().config().captureCopy(), null);
                     } catch (Exception e) {
                         if (queueActive()) taskQueue.cancel();
+                        recoveryWaiting = !resumePolicy.exhausted(); readyAfter = now() + 4000;
+                        if (resumePolicy.exhausted()) reportOperationFailure("recovery", "restore_failed", e);
                         LOGGER.error("Recovery failed", e); noticeKey("recovery.load_failed");
-                    } finally { resumeStarting = null; recoveredPages = java.util.List.of(); }
+                    } finally {
+                        if (!active() && !queueActive() && recovery != null) { recoveryWaiting = !resumePolicy.exhausted(); readyAfter = Math.max(readyAfter, now() + 4000); }
+                        resumeStarting = null; recoveredPages = java.util.List.of();
+                    }
                 });
             } catch (Exception e) {
                 Minecraft.getInstance().execute(() -> {
                     if (generation != recoveryGeneration) return;
-                    restoring = false; recoveryWaiting = false;
+                    restoring = false; recoveryWaiting = !resumePolicy.exhausted(); readyAfter = now() + 4000;
+                    if (resumePolicy.exhausted()) reportOperationFailure("recovery", "pages_load_failed", e);
                     LOGGER.error("Recovery pages could not be loaded", e); noticeKey("recovery.load_failed");
                 });
             }

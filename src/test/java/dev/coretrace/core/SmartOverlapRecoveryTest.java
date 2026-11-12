@@ -14,6 +14,44 @@ import static org.junit.jupiter.api.Assertions.*;
 class SmartOverlapRecoveryTest {
     @TempDir Path temp;
     private static final String QUERY = "co l a:sign t:7d";
+    @Test void sessionRecoveryIgnoresChangingCaretAlignmentButChecksRealFields() {
+        var old = new ArrayList<MessageData>();
+        var fresh = new ArrayList<MessageData>();
+        old.add(MessageData.plain(CaptureEngineTest.HEADER, 1000));
+        fresh.add(MessageData.plain(CaptureEngineTest.HEADER, 2000));
+        String[] stamps = {"2026-11-11 05:51:17 UTC", "2026-11-11 05:50:10 UTC",
+                "2026-11-11 05:01:18 UTC", "2026-11-11 05:01:14 UTC"};
+        for (int i = 0; i < stamps.length; i++) {
+            String action = i % 2 == 0 ? "logged out." : "logged in.";
+            String sign = i % 2 == 0 ? "-" : "+";
+            old.add(new MessageData((i == 0 ? "9.98/h" : "10.81/h") + " ago " + sign + " example_player " + action,
+                    List.of(stamps[i]), List.of(), 1000));
+            fresh.add(new MessageData((i == 0 ? "10.04/h" : "10.87/h") + " ago " + sign + " example_player " + action,
+                    List.of(stamps[i]), List.of(), 2000));
+            old.add(MessageData.plain(" ".repeat(i == 0 ? 17 : 16) + "^ (x-30807/y-15/z-20924/world)", 1000));
+            fresh.add(MessageData.plain(" ".repeat(16) + "^ (x-30807/y-15/z-20924/world)", 2000));
+        }
+        old.add(MessageData.plain("Page 1/741", 1000));
+        fresh.add(MessageData.plain("Page 1/741", 2000));
+        var query = EventParser.query("co l u:example_player a:session");
+        var expected = SmartOverlap.events(old, query);
+        assertEquals(0, SmartOverlap.find(SmartOverlap.events(fresh, query), expected));
+        var changedCoordinate = new ArrayList<>(fresh);
+        changedCoordinate.set(2, MessageData.plain("                ^ (x-30808/y-15/z-20924/world)", 2000));
+        assertEquals(-1, SmartOverlap.find(SmartOverlap.events(changedCoordinate, query), expected));
+        var changedTimestamp = new ArrayList<>(fresh);
+        changedTimestamp.set(1, new MessageData(fresh.get(1).text(), List.of("2026-11-11 05:51:18 UTC"), List.of(), 2000));
+        assertEquals(-1, SmartOverlap.find(SmartOverlap.events(changedTimestamp, query), expected));
+
+        var sink = new RecoveryTest.Sink();
+        var savedPages = List.of(new CaptureEngine.Page(1, true, old),
+                new CaptureEngine.Page(2, true, List.of(event(1, "10.90/h ago"))));
+        var engine = CaptureEngine.resume(LookupCommand.parse("co l u:example_player a:session").orElseThrow(),
+                settings(), sink, "server", 2000, 1000, 3, 741, savedPages);
+        for (MessageData message : fresh) engine.accept(message, 2000);
+        assertTrue(engine.active());
+        assertNull(sink.result, "The recovered first page must not be rejected as a changed result");
+    }
     private static CaptureEngine.Settings settings() {
         var config = new Config(); config.delayMs = 750; return config.settings();
     }
@@ -47,6 +85,19 @@ class SmartOverlapRecoveryTest {
         engine.accept(MessageData.plain(CaptureEngineTest.HEADER, now), now);
         for (int n : numbers) engine.accept(numbered(n, true), now);
         engine.accept(MessageData.plain("Page " + page + "/324", now), now);
+    }
+
+    @Test void matchingPrefixDoesNotChangeSavedPagesWhenTailBelongsToDifferentResults() {
+        var original = List.of(saved(1, 20, 19, 18), saved(2, 17, 16, 15), saved(3, 14, 13, 12));
+        var sink = new RecoveryTest.Sink();
+        var engine = CaptureEngine.resume(LookupCommand.parse(QUERY).orElseThrow(), settings(), sink,
+                "another-address", 1000, 100, 4, 4, original);
+        receive(engine, 1, 4, 1000, 21, 20, 19);
+        engine.tick(1750); receive(engine, 2, 4, 1750, 18, 17, 16);
+        engine.tick(2500); receive(engine, 2, 3, 2500, 10, 9, 8);
+        engine.tick(3250); receive(engine, 3, 3, 3250, 7, 6, 5);
+        assertEquals(CaptureEngine.Outcome.MISMATCH, sink.result.outcome());
+        assertEquals(original, sink.result.pages());
     }
 
     @Test void resumesNearPage322AfterTwoNewFrontEntries() {

@@ -12,6 +12,23 @@ final class TaskQueueScreen extends BaseScreen {
     private boolean wasBusy;
     private boolean wasPaused, wasSkippable;
     TaskQueueScreen(Screen parent) { super(parent, "queue.title"); }
+    private boolean editPending(java.util.function.Consumer<java.util.List<TaskDefinition>> change) {
+        var pending = mod.queuePendingTasks();
+        change.accept(pending);
+        boolean saved = mod.replacePendingTasks(pending);
+        if (saved) rebuildWidgets();
+        else error = tr("queue.edit_failed");
+        return saved;
+    }
+    private void openPendingEditor(TaskDefinition draft, int at, boolean insert) {
+        minecraft.gui.setScreen(new TaskEditScreen(this, draft, edited -> {
+            var pending = mod.queuePendingTasks();
+            if (!mod.canEditQueuePending() || at < 0 || at > pending.size() || (!insert && at == pending.size())) return false;
+            if (insert) pending.add(at, edited);
+            else pending.set(at, edited);
+            return mod.replacePendingTasks(pending);
+        }));
+    }
     private boolean saveDelay() {
         int parsedDelay;
         try { parsedDelay = TaskDefinition.taskDelay(delay.getValue()); }
@@ -28,15 +45,20 @@ final class TaskQueueScreen extends BaseScreen {
         String draft = delay == null ? "" + mod.config().taskDelayMs : delay.getValue();
         String nameDraft = excelName == null ? mod.config().queueExcelName : excelName.getValue();
         super.init(); excelName = null; int third = (panelWidth - 12) / 3;
+        boolean editing = mod.canEditQueuePending();
         button(tr("queue.add"), left, 40, third, () -> {
             if (!saveDelay()) return;
+            if (mod.canEditQueuePending()) {
+                openPendingEditor(new TaskDefinition(), mod.queuePendingTasks().size(), true); return;
+            }
             TaskDefinition task = new TaskDefinition(); mod.config().tasks.add(task); mod.saveConfig();
             minecraft.gui.setScreen(new TaskEditScreen(this, task));
-        }).active = !mod.busy();
+        }).active = !mod.busy() || editing;
         button(tr("queue.sounds"), left + third + 6, 40, third, () -> {
             if (saveDelay()) minecraft.gui.setScreen(new QueueSoundsScreen(this));
         });
         delay = field(tr("queue.delay"), draft, left + (third + 6) * 2, 40, panelWidth - (third + 6) * 2 - 24, 7);
+        delay.active = !mod.busy();
         delay.setHint(net.minecraft.network.chat.Component.literal("3000 ms"));
         delayWarning = addRenderableWidget(new DelayWarningButton(left + panelWidth - 20, 40,
                 tr("queue.short_delay_warning")));
@@ -63,27 +85,49 @@ final class TaskQueueScreen extends BaseScreen {
         }
         int taskTop = mod.config().queueExcel ? 146 : 120;
         int perPage = Math.max(1, (height - (taskTop + 112)) / 27);
-        var tasks = mod.config().tasks;
+        var tasks = editing ? mod.queueTasks() : mod.config().tasks;
         int pages = Math.max(1, (tasks.size() + perPage - 1) / perPage);
         page = Math.clamp(page, 0, pages - 1);
         for (int i = page * perPage; i < Math.min(tasks.size(), (page + 1) * perPage); i++) {
             int index = i, y = taskTop + (i % perPage) * 27;
             TaskDefinition task = tasks.get(i);
+            boolean pendingTask = editing && index > mod.queueCurrentIndex();
             String name = task.csvName == null || task.csvName.isBlank() ? task.command : task.csvName;
-            button((i + 1) + ". " + name, left, y, panelWidth - 158, () -> {
-                if (saveDelay()) minecraft.gui.setScreen(new TaskEditScreen(this, task));
-            }).active = !mod.busy();
+            var edit = button((i + 1) + ". " + name, left, y, panelWidth - 158, () -> {
+                if (!saveDelay()) return;
+                if (mod.canEditQueuePending()) openPendingEditor(task.copy(), index - mod.queueCurrentIndex() - 1, false);
+                else minecraft.gui.setScreen(new TaskEditScreen(this, task));
+            });
+            edit.active = !mod.busy() || pendingTask;
+            if (editing) edit.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
+                    net.minecraft.network.chat.Component.literal(tr(pendingTask ? "queue.edit_hint" : "queue.current_locked"))));
             button(tr("queue.copy"), left + panelWidth - 154, y, 54, () -> {
                 if (!saveDelay()) return;
+                if (mod.canEditQueuePending()) {
+                    int at = index - mod.queueCurrentIndex();
+                    var pending = mod.queuePendingTasks(); pending.add(at, task.copy());
+                    if (mod.replacePendingTasks(pending)) openPendingEditor(task.copy(), at, false);
+                    else error = tr("queue.edit_failed");
+                    return;
+                }
                 TaskDefinition duplicate = mod.config().duplicateTask(index);
                 mod.saveConfig(); page = (index + 1) / perPage;
                 minecraft.gui.setScreen(new TaskEditScreen(this, duplicate));
-            }).active = !mod.busy();
-            button("↑", left + panelWidth - 96, y, 24, () -> { java.util.Collections.swap(tasks, index, index - 1); mod.saveConfig(); rebuildWidgets(); }).active = i > 0 && !mod.busy();
-            button("↓", left + panelWidth - 69, y, 24, () -> { java.util.Collections.swap(tasks, index, index + 1); mod.saveConfig(); rebuildWidgets(); }).active = i + 1 < tasks.size() && !mod.busy();
-            var remove = button("×", left + panelWidth - 42, y, 42, () -> { tasks.remove(index); mod.saveConfig(); rebuildWidgets(); });
+            }).active = !mod.busy() || pendingTask;
+            button("↑", left + panelWidth - 96, y, 24, () -> {
+                if (mod.canEditQueuePending()) editPending(p -> java.util.Collections.swap(p, index - mod.queueCurrentIndex() - 1, index - mod.queueCurrentIndex() - 2));
+                else { java.util.Collections.swap(tasks, index, index - 1); mod.saveConfig(); rebuildWidgets(); }
+            }).active = editing ? pendingTask && i > mod.queueCurrentIndex() + 1 : i > 0 && !mod.busy();
+            button("↓", left + panelWidth - 69, y, 24, () -> {
+                if (mod.canEditQueuePending()) editPending(p -> java.util.Collections.swap(p, index - mod.queueCurrentIndex() - 1, index - mod.queueCurrentIndex()));
+                else { java.util.Collections.swap(tasks, index, index + 1); mod.saveConfig(); rebuildWidgets(); }
+            }).active = editing ? pendingTask && i + 1 < tasks.size() : i + 1 < tasks.size() && !mod.busy();
+            var remove = button("×", left + panelWidth - 42, y, 42, () -> {
+                if (mod.canEditQueuePending()) editPending(p -> p.remove(index - mod.queueCurrentIndex() - 1));
+                else { tasks.remove(index); mod.saveConfig(); rebuildWidgets(); }
+            });
             remove.setTooltip(net.minecraft.client.gui.components.Tooltip.create(net.minecraft.network.chat.Component.literal(tr("queue.delete"))));
-            remove.active = !mod.busy();
+            remove.active = !mod.busy() || pendingTask;
         }
         button("←", left, height - 67, 30, () -> { page--; rebuildWidgets(); }).active = page > 0;
         button("→", left + 34, height - 67, 30, () -> { page++; rebuildWidgets(); }).active = page + 1 < pages;
